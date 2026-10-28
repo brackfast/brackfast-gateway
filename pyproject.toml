@@ -9,7 +9,14 @@ requires-python = ">=3.13"
 dependencies = [
 	"msgspec>=0.19",
 	"aiohttp>=3.11",
+	"tzdata; sys_platform == 'win32'",
 ]
+
+[project.optional-dependencies]
+ui = ["imgui-bundle>=1.92"]
+
+[project.scripts]
+alpacagw = "alpacagw.gateway.app:main"
 
 [dependency-groups]
 dev = [

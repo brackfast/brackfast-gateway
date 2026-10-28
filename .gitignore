@@ -8,3 +8,6 @@ dist/
 # credentials: only the *.cfg.example templates belong in the repo
 *.cfg
 !*.cfg.example
+
+# window layout written by imgui
+*.ini
