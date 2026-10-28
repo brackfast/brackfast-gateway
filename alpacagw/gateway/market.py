@@ -77,6 +77,11 @@ class MarketRelay:
 	def connected(self) -> bool:
 		return self.alpaca.stocks.is_ready
 
+	@property
+	def symbols(self) -> int:
+		"""How many symbols the clients have subscribed (quotes or bars)."""
+		return len(self._quote_refs.keys() | self._bar_refs.keys())
+
 	async def start(self) -> None:
 		self._flusher = asyncio.get_running_loop().create_task(self._flush_loop())
 

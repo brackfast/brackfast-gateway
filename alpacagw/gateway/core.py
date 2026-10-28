@@ -84,6 +84,9 @@ class Snapshot:
 		self.address = f"ws://{core.host}:{core.port}/"
 		self.status = core.status
 		self.account = core.account
+		self.rest_ok = core.rest_ok
+		self.feed = core.alpaca.stock_feed
+		self.market_symbols = core.market.symbols
 		self.clients = [(c.name, c.peer, c.connected_at, len(c.quotes | c.bars)) for c in core.clients]
 		self.positions = sorted(core.positions.values(), key=lambda p: p.symbol)
 		self.orders = sorted(core.tracker.orders.values(), key=lambda o: o.created_at or _now(), reverse=True)
@@ -102,6 +105,7 @@ class GatewayCore:
 		self.log = log or logging.getLogger("alpacagw.gateway")
 		self.status = Status(state="starting")
 		self.account: Account | None = None
+		self.rest_ok = False                     # the last account / positions request worked
 		self.positions: dict[str, Position] = {}
 		self.events: deque[Event] = deque(maxlen=2000)
 		self.clients: list[Client] = []
@@ -114,6 +118,7 @@ class GatewayCore:
 		self._loops: list[asyncio.Task] = []
 		self._positions_soon: asyncio.TimerHandle | None = None
 		self._stopped = asyncio.Event()
+		self._stop_requested = False
 
 	# -- lifecycle ------------------------------------------------------------------
 
@@ -136,6 +141,7 @@ class GatewayCore:
 			if acc.trading_blocked or acc.account_blocked:
 				raise RuntimeError(f"Alpaca account {acc.account_number} is blocked for trading")
 			await self._refresh()
+			self.rest_ok = True
 			await self.tracker.load()
 			await orders.start()
 			await self.market.start()
@@ -169,9 +175,15 @@ class GatewayCore:
 				await self.stop()
 
 	def request_stop(self) -> None:
-		"""Thread-safe: stop the gateway (the window's Quit)."""
-		if self.loop is not None:
+		"""Thread-safe: stop the gateway (the window's Quit). Once only: asked again (the window closing
+		after the gateway stopped), the loop may be closed already."""
+		if self.loop is None or self._stop_requested or self.loop.is_closed():
+			return
+		self._stop_requested = True
+		try:
 			self.loop.call_soon_threadsafe(lambda: self._spawn(self.stop()))
+		except RuntimeError:                     # closed between the check and the call
+			pass
 
 	def _spawn(self, coro) -> asyncio.Task:
 		task = asyncio.get_running_loop().create_task(coro)
@@ -204,7 +216,7 @@ class GatewayCore:
 
 	def _stream_state(self) -> None:
 		trading, market = self.alpaca.orders.is_ready, self.market.connected
-		if trading != self.status.trading_connected:
+		if trading != self.status.trading_connected and self.status.state != "stopping":    # not our own stop
 			self.event("info" if trading else "warning", f"alpaca trade updates {'connected' if trading else 'disconnected'}")
 		self._set_status()
 
@@ -269,6 +281,7 @@ class GatewayCore:
 				if not failing:
 					self.event("warning", f"account / positions refresh failed: {exc}")
 				failing = True
+			self.rest_ok = not failing
 
 	async def _poll_loop(self) -> None:
 		n, failing = 0, False

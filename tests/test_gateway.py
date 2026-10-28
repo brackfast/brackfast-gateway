@@ -121,3 +121,31 @@ async def test_bars_and_live_data(gateway):
 	bar = await conn.wait(lambda m: isinstance(m, Bar))
 	assert (bar.open, bar.high, bar.close, bar.volume, bar.complete) == (500.0, 501.0, 501.0, 15.0, False)
 	assert bar.ts == t0.replace(second=0)
+
+
+def test_stop_from_another_thread_twice():
+	"""The window's way: the gateway on its own loop in a thread; Quit stops it, and closing the window
+	asks again once the loop is closed (that raised "Event loop is closed")."""
+	import threading
+
+	core = GatewayCore(FakeAlpaca(), port=free_port())
+	failed = []
+
+	def serve():
+		try:
+			asyncio.run(core.run())
+		except BaseException as exc:
+			failed.append(exc)
+
+	thread = threading.Thread(target=serve, daemon=True)
+	thread.start()
+	for _ in range(100):
+		if core.status.state == "ready":
+			break
+		threading.Event().wait(0.05)
+	assert core.status.state == "ready"
+	core.request_stop()                          # Quit
+	thread.join(5)
+	assert not thread.is_alive() and not failed
+	core.request_stop()                          # the window closing afterwards: no error
+	assert not any(e.level == "warning" and "disconnected" in e.text for e in core.events)

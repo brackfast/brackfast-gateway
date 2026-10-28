@@ -96,6 +96,49 @@ def _value(section: configparser.SectionProxy, key: str) -> str | None:
 	return value
 
 
+def save_config(path: str | os.PathLike, values: dict[str, str]) -> None:
+	"""Set keys of the [alpaca] section in a config file, keeping its comments and other lines
+	(a key's inline comment too). Missing keys are added at the end of the section, a missing
+	file / section is created."""
+	cfg_path = Path(path).expanduser()
+	lines = cfg_path.read_text(encoding="utf-8").splitlines() if cfg_path.is_file() else []
+	pending = dict(values)
+	out: list[str] = []
+	section = ""
+	start = end = None                           # [alpaca] header index, index after its last line
+	for line in lines:
+		stripped = line.strip()
+		if stripped.startswith("[") and stripped.endswith("]"):
+			if section == "alpaca":
+				end = len(out)
+			section = stripped[1:-1].strip().lower()
+			if section == "alpaca":
+				start = len(out)
+		elif section == "alpaca" and "=" in stripped and not stripped.startswith((";", "#")):
+			key = stripped.split("=", 1)[0].strip().lower()
+			if key in pending:
+				comment = ""
+				for marker in (" ;", " #"):
+					i = line.find(marker, line.index("=") + 1)
+					if i >= 0:
+						comment = "    " + line[i:].strip()
+						break
+				line = f"{key} = {pending.pop(key)}{comment}"
+		out.append(line)
+	if start is None:
+		if out and out[-1].strip():
+			out.append("")
+		out.append("[alpaca]")
+		end = len(out)
+	else:
+		if end is None:
+			end = len(out)
+		while end > start + 1 and not out[end - 1].strip():
+			end -= 1                             # before the section's trailing blank lines
+	out[end:end] = [f"{k} = {v}" for k, v in pending.items()]
+	cfg_path.write_text("\n".join(out) + "\n", encoding="utf-8")
+
+
 def load_config(path: str | os.PathLike) -> AlpacaConfig:
 	"""Read one account's config file."""
 	cfg_path = Path(path).expanduser()
