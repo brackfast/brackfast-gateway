@@ -1,0 +1,30 @@
+[project]
+name = "alpacagw"
+version = "0.1.0"
+description = "Alpaca Gateway: a local gateway between trading apps and the Alpaca Trading / Market Data API"
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+requires-python = ">=3.13"
+dependencies = [
+	"msgspec>=0.19",
+	"aiohttp>=3.11",
+]
+
+[dependency-groups]
+dev = [
+	"pytest>=8",
+	"pytest-asyncio>=0.24",
+]
+
+[build-system]
+requires = ["uv_build>=0.10.2,<0.11"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-root = ""
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+testpaths = ["tests"]

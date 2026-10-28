@@ -1,0 +1,10 @@
+__pycache__/
+*.egg-info/
+.venv/
+.pytest_cache/
+dist/
+*.log
+
+# credentials: only the *.cfg.example templates belong in the repo
+*.cfg
+!*.cfg.example
