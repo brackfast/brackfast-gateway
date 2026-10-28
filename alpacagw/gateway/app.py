@@ -131,10 +131,12 @@ def make_core(config: AlpacaConfig, host: str | None, port: int | None) -> Gatew
 	host = host or settings.host
 	port = port or settings.port_for(config.environment)
 	feed = settings.stock_feed or config.stock_feed
-	log.info("alpacagw %s, %s account, %s data, ws://%s:%d/", __version__, config.environment, feed, host, port)
+	log.info("alpacagw %s, %s account, %s data, ws://%s:%d/, quotes every %d ms, forming bars every %d ms",
+		__version__, config.environment, feed, host, port, settings.quote_interval_ms, settings.bar_interval_ms)
 	if host not in ("127.0.0.1", "localhost", "::1"):
 		log.warning("listening on %s: every computer that reaches port %d can trade this account", host, port)
-	return GatewayCore(Alpaca(config, stock_feed=feed), host=host, port=port)
+	return GatewayCore(Alpaca(config, stock_feed=feed), host=host, port=port,
+		quote_interval=max(10, settings.quote_interval_ms) / 1000, bar_interval=max(10, settings.bar_interval_ms) / 1000)
 
 
 def main(argv: list[str] | None = None) -> int:

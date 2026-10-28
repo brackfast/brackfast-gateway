@@ -265,6 +265,8 @@ class GatewayWindow:
 			"stock_feed": s.stock_feed or self.launcher.config.stock_feed,
 			"port": s.port_for(env),
 			"local_only": s.local_only,
+			"quote_interval_ms": s.quote_interval_ms,
+			"bar_interval_ms": s.bar_interval_ms,
 		}
 		self.form_message = ""
 		self.settings_requested = True
@@ -304,13 +306,25 @@ class GatewayWindow:
 		_, f["local_only"] = imgui.checkbox("Allow local connections only", f["local_only"])
 		if not f["local_only"]:
 			imgui.text_colored(RED, "Any computer that reaches this port can trade the account.")
+		imgui.spacing()
+		imgui.text("Updates to the clients, per symbol")
+		label("Quotes")
+		changed, value = imgui.input_int("ms##quotes", f["quote_interval_ms"], 10, 100)
+		if changed:
+			f["quote_interval_ms"] = max(10, min(value, 10_000))
+		label("Forming bar")
+		changed, value = imgui.input_int("ms##bars", f["bar_interval_ms"], 10, 100)
+		if changed:
+			f["bar_interval_ms"] = max(10, min(value, 60_000))
+		imgui.text_colored(GREY, "at most every ... ms (quotes: the newest; the bar: when it changed)")
 		if self.form_message:
 			imgui.spacing()
 			imgui.text_colored(YELLOW, self.form_message)
 		imgui.spacing()
 		imgui.separator()
 		if imgui.button("Save", imgui.ImVec2(90, 0)):
-			s = settings_mod.GatewaySettings(stock_feed=f["stock_feed"], port=f["port"], local_only=f["local_only"])
+			s = settings_mod.GatewaySettings(stock_feed=f["stock_feed"], port=f["port"], local_only=f["local_only"],
+				quote_interval_ms=f["quote_interval_ms"], bar_interval_ms=f["bar_interval_ms"])
 			try:
 				settings_mod.save(env, s)
 				self.form_message = "Saved. Restart the gateway to use the new settings."
@@ -557,17 +571,16 @@ class GatewayWindow:
 	# -- tabs ---------------------------------------------------------------------------
 
 	def _clients(self, snap: Snapshot) -> None:
-		if not imgui.begin_table("clients", 4, imgui.TableFlags_.borders_inner_h | imgui.TableFlags_.row_bg):
+		if not imgui.begin_table("clients", 3, imgui.TableFlags_.borders_inner_h | imgui.TableFlags_.row_bg):
 			return
-		for name in ("Client", "Address", "Connected", "Symbols"):
+		for name in ("Client", "Address", "Connected"):
 			imgui.table_setup_column(name)
 		imgui.table_headers_row()
-		for name, peer, since, symbols in snap.clients:
+		for name, peer, since, _symbols in snap.clients:
 			imgui.table_next_row()
 			imgui.table_next_column(); imgui.text(name)
 			imgui.table_next_column(); imgui.text(peer)
 			imgui.table_next_column(); imgui.text(_ny(since, "%m-%d %H:%M:%S"))
-			imgui.table_next_column(); imgui.text(str(symbols))
 		imgui.end_table()
 
 	def _log(self, snap: Snapshot) -> None:

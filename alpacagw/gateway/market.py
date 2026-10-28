@@ -191,17 +191,24 @@ class MarketRelay:
 			close=b.close, volume=b.volume, complete=True))
 
 	async def _flush_loop(self) -> None:
-		bar_every = max(1, round(self.bar_interval / self.quote_interval))
-		n = 0
+		"""Quotes every ``quote_interval`` s (the newest per symbol), changed forming bars every
+		``bar_interval`` s; each on its own clock."""
+		loop = asyncio.get_running_loop()
+		next_quotes = next_bars = loop.time()
 		while True:
-			await asyncio.sleep(self.quote_interval)
-			n += 1
-			if self._quotes:
+			await asyncio.sleep(max(0.005, min(next_quotes, next_bars) - loop.time()))
+			now = loop.time()
+			send_quotes, send_bars = now >= next_quotes, now >= next_bars
+			if send_quotes:
+				next_quotes = now + self.quote_interval
+			if send_bars:
+				next_bars = now + self.bar_interval
+			if send_quotes and self._quotes:
 				quotes, self._quotes = self._quotes, {}
 				for symbol, q in quotes.items():
 					self.publish("quote", symbol, Quote(symbol=symbol, ts=q.timestamp, bid=q.bid_price,
 						bid_size=q.bid_size, ask=q.ask_price, ask_size=q.ask_size))
-			if n % bar_every == 0:
+			if send_bars:
 				for symbol, f in self._forming.items():
 					if f.dirty:
 						f.dirty = False

@@ -95,7 +95,8 @@ class Snapshot:
 
 class GatewayCore:
 	def __init__(self, alpaca: Alpaca, *, host: str = "127.0.0.1", port: int = 4102,
-			refresh: float = 5.0, order_poll: float = 1.0, log: logging.Logger | None = None) -> None:
+			refresh: float = 5.0, order_poll: float = 1.0, quote_interval: float = 0.1, bar_interval: float = 0.25,
+			log: logging.Logger | None = None) -> None:
 		self.alpaca = alpaca
 		self.host = host
 		self.port = port
@@ -109,7 +110,8 @@ class GatewayCore:
 		self.events: deque[Event] = deque(maxlen=2000)
 		self.clients: list[Client] = []
 		self.tracker = OrderTracker(alpaca.trading, on_order=self._on_order, on_fill=self._on_fill)
-		self.market = MarketRelay(alpaca, publish=self._publish_market)
+		self.market = MarketRelay(alpaca, publish=self._publish_market, quote_interval=quote_interval,
+			bar_interval=bar_interval)
 		self.snapshot: Snapshot | None = None      # for the window; replaced, never changed
 		self.loop: asyncio.AbstractEventLoop | None = None
 		self._runner: web.AppRunner | None = None

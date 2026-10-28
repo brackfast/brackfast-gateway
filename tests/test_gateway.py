@@ -148,3 +148,24 @@ def test_stop_from_another_thread_twice():
 	assert not thread.is_alive() and not failed
 	core.request_stop()                          # the window closing afterwards: no error
 	assert not any(e.level == "warning" and "disconnected" in e.text for e in core.events)
+
+
+async def test_relay_intervals_are_independent():
+	"""Quotes every 20 ms, the forming bar every 300 ms: after 100 ms quotes went out, the bar not yet."""
+	from datetime import datetime, timezone
+	from alpacagw.gateway.market import MarketRelay
+	alpaca = FakeAlpaca()
+	sent = []
+	relay = MarketRelay(alpaca, publish=lambda kind, symbol, msg: sent.append(kind), quote_interval=0.02,
+		bar_interval=0.3)
+	await relay.start()
+	relay.add(["SPY"], quotes=True, bars=True)
+	t0 = datetime(2026, 10, 28, 14, 31, 5, tzinfo=timezone.utc)
+	await asyncio.sleep(0.05)                               # first flushes (nothing to send) done
+	alpaca.stocks.emit(AlpacaQuote(symbol="SPY", timestamp=t0, bid_price=1, bid_size=1, ask_price=2, ask_size=1))
+	alpaca.stocks.emit(Trade(symbol="SPY", timestamp=t0, price=1.5, size=10))
+	await asyncio.sleep(0.1)
+	assert "quote" in sent and "bar" not in sent
+	await asyncio.sleep(0.35)
+	assert "bar" in sent
+	await relay.stop()
