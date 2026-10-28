@@ -22,15 +22,14 @@ not depend on the broker, so an app written for it works with any gateway that s
    today).
 3. From then on the gateway sends every change. Commands can be sent at any time.
 
-The gateway closes the connection with code 1008 if `hello` is missing, the protocol version is
-not supported, or the token is wrong. A gateway that listens beyond the local machine always
-requires a token.
+The gateway closes the connection with code 1008 if `hello` is missing or the protocol version is
+not supported. By default it accepts connections from the local machine only.
 
 ## Client to gateway
 
 | msg | Fields | Effect |
 |---|---|---|
-| `hello` | `protocol` (1), `client` (name), `token` | Opens the session. |
+| `hello` | `protocol` (1), `client` (name) | Opens the session. |
 | `submit_bracket` | `id`, `symbol`, `side`, `qty`, `take_profit`, `stop_loss`, `limit_price`?, `stop_loss_limit`?, `tif` (`gtc`) | An entry (market without `limit_price`, else limit) with a take profit leg and a stop loss leg. The legs get the ids `<id>.tp` and `<id>.sl`. |
 | `submit_order` | `id`, `symbol`, `side`, `qty`, `type`, `limit_price`?, `stop_price`?, `tif` (`day`), `extended_hours` | A single order of type `market`, `limit`, `stop` or `stop_limit`. |
 | `replace_order` | `id`, `limit_price`?, `stop_price`?, `qty`? | Changes a working order. The order keeps its `id`. |

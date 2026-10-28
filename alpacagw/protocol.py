@@ -24,10 +24,9 @@ class Message(msgspec.Struct, kw_only=True, tag_field="msg", omit_defaults=True)
 
 class Hello(Message, tag="hello"):
 	"""First message of every connection. The gateway closes the connection if it does not
-	come within 5 s, if ``protocol`` is not supported or if ``token`` is wrong."""
+	come within 5 s or if ``protocol`` is not supported."""
 	protocol: int
 	client: str                         # a name for logs and the gateway's client list
-	token: str = ""                     # required when the gateway is configured with one
 
 
 class SubmitBracket(Message, tag="submit_bracket"):

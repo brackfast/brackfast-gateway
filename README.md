@@ -11,10 +11,17 @@ Status: early, paper accounts only so far.
 
 ```bash
 uv sync --extra ui
-uv run alpacagw --config paper.cfg              # window; clients connect to ws://127.0.0.1:4102/
-uv run alpacagw --config live.cfg --live        # a live account must be confirmed with --live (port 4101)
-uv run alpacagw --config paper.cfg --headless   # no window
+uv run alpacagw                 # window; clients connect to ws://127.0.0.1:4102/ (paper)
+uv run alpacagw --live          # config.cfg is a live account: confirm with --live (port 4101)
+uv run alpacagw --headless      # no window: config.cfg must hold the credentials
 ```
+
+The account comes from `config.cfg` in the gateway's folder: the project folder, or the folder of
+the executable. If the file is missing, the gateway writes a template there. The gateway only reads
+it and never writes credentials.
+
+If `key_id` / `secret_key` are empty, the window asks for them at start. Credentials entered there
+are kept in memory for that run only.
 
 What the gateway does:
 
@@ -27,9 +34,14 @@ What the gateway does:
 - **Market data:** historical bars, live 1-minute bars (forming and complete) and quotes, so the
   clients need no Alpaca keys.
 
-The protocol (msgpack over a websocket) is described in [PROTOCOL.md](PROTOCOL.md). By default
-the gateway listens on 127.0.0.1 only. `--host 0.0.0.0` also requires `--token`, which clients
-must send in their hello.
+The protocol (msgpack over a websocket) is described in [PROTOCOL.md](PROTOCOL.md).
+
+The window's settings (the gear) hold the data feed, the socket port and "Allow local connections
+only" (on by default: 127.0.0.1). They are saved per environment in `%APPDATA%\alpacagw\settings.json`
+and apply after a restart. `--port` and `--host` override them.
+
+Without local-only, any computer that reaches the port can trade the account: use it only in a
+network you trust.
 
 ## alpacagw.client
 
@@ -47,7 +59,7 @@ import asyncio
 from alpacagw.client import Alpaca, Bar, OrderRequest, TradeUpdate
 
 async def main():
-	async with Alpaca("paper.cfg") as alpaca:
+	async with Alpaca("config.cfg") as alpaca:
 		print(await alpaca.trading.get_account())
 
 		alpaca.stocks.on(Bar, lambda bar: print(bar), symbols=["AAPL"])
@@ -67,15 +79,14 @@ their messages one at a time, in the order they arrived.
 
 ### Configuration
 
-Use one config file per account. Copy `paper.cfg.example` to `paper.cfg` and fill it in.
-`*.cfg` files are git-ignored.
+`Alpaca("config.cfg")` reads one account's file. `*.cfg` files are git-ignored.
 
 ```ini
 [alpaca]
 environment = paper        ; paper | live
 key_id = PK...
 secret_key = ...
-stock_feed = iex           ; iex (free) | sip (paid) | delayed_sip
+stock_feed = iex           ; optional: iex (free) | sip (paid) | delayed_sip
 ```
 
 ## Development
@@ -83,7 +94,7 @@ stock_feed = iex           ; iex (free) | sip (paid) | delayed_sip
 ```bash
 uv sync
 uv run pytest              # offline: a local fake Alpaca server
-uv run python examples/demo.py paper.cfg
+uv run python examples/demo.py config.cfg
 ```
 
 ## License

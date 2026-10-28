@@ -1,6 +1,0 @@
-; Copy to paper.cfg (or live.cfg) and fill in. Never commit the copy.
-[alpaca]
-environment = paper        ; paper | live (required, so a file cannot silently point at the wrong account)
-key_id = <your key id>
-secret_key = <your secret key>
-stock_feed = iex           ; iex (free) | sip (paid) | delayed_sip

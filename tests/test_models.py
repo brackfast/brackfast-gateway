@@ -78,3 +78,24 @@ def test_config(tmp_path):
 	with pytest.raises(ValueError, match="environment"):
 		load_config(path)
 	assert Credentials("a", "b").headers() == {"APCA-API-KEY-ID": "a", "APCA-API-SECRET-KEY": "b"}
+
+
+def test_config_without_credentials(tmp_path):
+	from alpacagw.gateway.app import TEMPLATE
+	path = tmp_path / "config.cfg"
+	path.write_text(TEMPLATE)
+	config = load_config(path, require_credentials=False)
+	assert config.environment == "paper" and config.credentials is None
+	with pytest.raises(ValueError, match="required"):
+		load_config(path)
+
+
+def test_gateway_settings(tmp_path):
+	from alpacagw.gateway import settings
+	file = tmp_path / "settings.json"
+	assert settings.load("paper", file).port_for("paper") == 4102
+	settings.save("paper", settings.GatewaySettings(stock_feed="sip", port=4555, local_only=False), file)
+	settings.save("live", settings.GatewaySettings(), file)
+	s = settings.load("paper", file)
+	assert (s.stock_feed, s.port_for("paper"), s.host) == ("sip", 4555, "0.0.0.0")
+	assert settings.load("live", file).port_for("live") == 4101 and settings.load("live", file).host == "127.0.0.1"

@@ -47,14 +47,14 @@ class Conn:
 @pytest.fixture
 async def gateway():
 	alpaca = FakeAlpaca()
-	core = GatewayCore(alpaca, port=free_port(), token="t0k")
+	core = GatewayCore(alpaca, port=free_port())
 	await core.start()
 	session = aiohttp.ClientSession()
 
-	async def connect(token="t0k", protocol=PROTOCOL_VERSION) -> Conn:
+	async def connect(protocol=PROTOCOL_VERSION) -> Conn:
 		ws = await session.ws_connect(f"ws://127.0.0.1:{core.port}/")
 		conn = Conn(ws)
-		await conn.send(Hello(protocol=protocol, client="test", token=token))
+		await conn.send(Hello(protocol=protocol, client="test"))
 		return conn
 
 	yield core, alpaca, connect
@@ -71,10 +71,9 @@ async def test_hello_welcome_and_state(gateway):
 	assert status.state == "ready" and status.trading_connected
 
 
-@pytest.mark.parametrize("token,protocol", [("wrong", PROTOCOL_VERSION), ("t0k", 99)])
-async def test_refused(gateway, token, protocol):
+async def test_refused(gateway):
 	core, alpaca, connect = gateway
-	conn = await connect(token, protocol)
+	conn = await connect(99)
 	with pytest.raises(ConnectionError, match="1008"):          # policy violation
 		await conn.wait(lambda m: True)
 

@@ -94,12 +94,11 @@ class Snapshot:
 
 
 class GatewayCore:
-	def __init__(self, alpaca: Alpaca, *, host: str = "127.0.0.1", port: int = 4102, token: str = "",
+	def __init__(self, alpaca: Alpaca, *, host: str = "127.0.0.1", port: int = 4102,
 			refresh: float = 5.0, order_poll: float = 1.0, log: logging.Logger | None = None) -> None:
 		self.alpaca = alpaca
 		self.host = host
 		self.port = port
-		self.token = token
 		self.refresh = refresh
 		self.order_poll = order_poll
 		self.log = log or logging.getLogger("alpacagw.gateway")
@@ -167,7 +166,11 @@ class GatewayCore:
 
 	async def run(self) -> None:
 		"""Start and serve until ``request_stop``."""
-		await self.start()
+		try:
+			await self.start()
+		except BaseException:
+			await self.stop()                    # free the port: the window may start another try
+			raise
 		try:
 			await self._stopped.wait()
 		finally:
@@ -320,8 +323,6 @@ class GatewayCore:
 			problem = "the first message must be hello"
 		elif hello.protocol != PROTOCOL_VERSION:
 			problem = f"protocol {hello.protocol} not supported (gateway: {PROTOCOL_VERSION})"
-		elif self.token and hello.token != self.token:
-			problem = "wrong token"
 		if problem:
 			self.log.warning("connection from %s refused: %s", peer, problem)
 			await ws.close(code=aiohttp.WSCloseCode.POLICY_VIOLATION, message=problem.encode())
