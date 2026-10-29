@@ -29,6 +29,7 @@ YELLOW = imgui.ImVec4(0.95, 0.80, 0.30, 1.0)
 GREY = imgui.ImVec4(0.6, 0.6, 0.6, 1.0)
 LEVEL_COLORS = {"warning": YELLOW, "error": RED}
 FONT_SIZE = 14.0                                         # pixels at 100 % display scaling
+FONT_FILE = "fonts/Roboto/Roboto-Regular.ttf"            # in imgui_bundle's assets (as Brackfast)
 ON = imgui.ImVec4(0.13, 0.55, 0.13, 1.0)               # Connection Status rows, as IB Gateway
 OFF = imgui.ImVec4(0.75, 0.12, 0.12, 1.0)
 LIVE_HOVER = imgui.ImVec4(0.88, 0.20, 0.20, 1.0)
@@ -147,7 +148,13 @@ class GatewayWindow:
 		params.callbacks.show_gui = self.gui
 		params.callbacks.post_init = self._post_init
 		params.callbacks.setup_imgui_style = self._style
+		params.callbacks.load_additional_fonts = self._fonts
 		immapp.run(params)
+
+	@staticmethod
+	def _fonts() -> None:
+		"""Roboto (imgui_bundle's assets, Apache License 2.0) instead of Hello ImGui's default font."""
+		hello_imgui.load_font(FONT_FILE, FONT_SIZE)
 
 	@staticmethod
 	def _style() -> None:

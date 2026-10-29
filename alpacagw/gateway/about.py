@@ -38,6 +38,7 @@ LIBRARIES = [
 	Library("Dear ImGui Bundle and Hello ImGui", "Pascal Thomet", "MIT License",
 		"https://github.com/pthom/imgui_bundle", "imgui-bundle"),
 	Library("GLFW", "Marcus Geelnard and Camilla Löwy", "zlib/libpng License", "https://www.glfw.org"),
+	Library("Roboto font", "Google", "Apache License 2.0", "https://fonts.google.com/specimen/Roboto"),
 	Library("Droid Sans font", "Google", "Apache License 2.0", "https://fonts.google.com/specimen/Droid+Sans"),
 	Library("Font Awesome 4 icon font", "Dave Gandy", "SIL Open Font License 1.1", "https://fontawesome.com"),
 	Library("aiohttp", "the aio-libs contributors", "Apache License 2.0", "https://github.com/aio-libs/aiohttp",
