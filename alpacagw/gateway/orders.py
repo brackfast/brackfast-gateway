@@ -158,6 +158,7 @@ class OrderTracker:
 		"""Send a checked bracket; returns the reason when Alpaca refuses it."""
 		req = OrderRequest.bracket(entry.symbol, entry.side, entry.qty, take_profit=tp.limit_price,
 			stop_loss=sl.stop_price, stop_loss_limit=stop_loss_limit, limit_price=entry.limit_price,
+			stop_price=entry.stop_price,
 			time_in_force=entry.tif, client_order_id=entry.id)
 		return await self._submit(req, entry, [tp, sl])
 

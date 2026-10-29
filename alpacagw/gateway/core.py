@@ -448,34 +448,43 @@ class GatewayCore:
 
 	async def submit_bracket(self, cmd: SubmitBracket, client: Client | None = None) -> str | None:
 		symbol = cmd.symbol.upper()
-		limit, tp, sl, sl_limit = (round_price(p) for p in (cmd.limit_price, cmd.take_profit, cmd.stop_loss,
-			cmd.stop_loss_limit))
+		limit, stop_entry, tp, sl, sl_limit = (round_price(p) for p in (cmd.limit_price, cmd.stop_price,
+			cmd.take_profit, cmd.stop_loss, cmd.stop_loss_limit))
+		entry_price = stop_entry if stop_entry is not None else limit      # where the entry triggers / fills
 		problem = self._check_new(cmd.id, symbol, cmd.side, cmd.qty)
 		if problem is None:
 			long = cmd.side == "buy"
-			if any(p is not None and not p > 0 for p in (limit, tp, sl, sl_limit)) or tp is None or sl is None:
+			if any(p is not None and not p > 0 for p in (limit, stop_entry, tp, sl, sl_limit)) or tp is None or sl is None:
 				problem = "prices must be > 0"
 			elif (tp <= sl) if long else (tp >= sl):
 				problem = f"take profit must be {'above' if long else 'below'} the stop loss"
-			elif limit is not None and not ((sl < limit < tp) if long else (tp < limit < sl)):
-				problem = "the limit price must lie between stop loss and take profit"
+			elif entry_price is not None and not ((sl < entry_price < tp) if long else (tp < entry_price < sl)):
+				problem = "the entry price must lie between stop loss and take profit"
+			elif stop_entry is not None and limit is not None and ((limit < stop_entry) if long else (limit > stop_entry)):
+				problem = f"the limit price of a stop limit entry must be {'at or above' if long else 'at or below'} its stop"
 			elif cmd.tif not in ("day", "gtc"):
 				problem = "tif must be day or gtc"
 		if problem is not None:
 			self._reply(client, "submit_bracket", cmd.id, problem)
 			return problem
 		origin, exit_side = self._name(client), "sell" if cmd.side == "buy" else "buy"
-		entry = Order(id=cmd.id, symbol=symbol, side=cmd.side, type="market" if limit is None else "limit",
-			qty=cmd.qty, status="pending", role="entry", leg_ids=[f"{cmd.id}.tp", f"{cmd.id}.sl"], limit_price=limit,
-			tif=cmd.tif, origin=origin, created_at=_now())
+		if stop_entry is None:
+			kind = "market" if limit is None else "limit"
+		else:
+			kind = "stop" if limit is None else "stop_limit"
+		entry = Order(id=cmd.id, symbol=symbol, side=cmd.side, type=kind, qty=cmd.qty, status="pending", role="entry",
+			leg_ids=[f"{cmd.id}.tp", f"{cmd.id}.sl"], limit_price=limit, stop_price=stop_entry, tif=cmd.tif,
+			origin=origin, created_at=_now())
 		take = Order(id=f"{cmd.id}.tp", symbol=symbol, side=exit_side, type="limit", qty=cmd.qty, status="pending",
 			role="take_profit", parent_id=cmd.id, limit_price=tp, tif=cmd.tif, origin=origin, created_at=_now())
 		stop = Order(id=f"{cmd.id}.sl", symbol=symbol, side=exit_side, type="stop" if sl_limit is None else "stop_limit",
 			qty=cmd.qty, status="pending", role="stop_loss", parent_id=cmd.id, stop_price=sl, limit_price=sl_limit,
 			tif=cmd.tif, origin=origin, created_at=_now())
 		problem = await self.tracker.submit_bracket(entry, take, stop, sl_limit)
-		self._reply(client, "submit_bracket", cmd.id, problem, f"{cmd.side} {cmd.qty:g} {symbol} "
-			f"{'market' if limit is None else limit}, take profit {tp}, stop loss {sl}")
+		at = {"market": "market", "limit": f"limit {limit}", "stop": f"stop {stop_entry}",
+			"stop_limit": f"stop {stop_entry} limit {limit}"}[kind]
+		self._reply(client, "submit_bracket", cmd.id, problem, f"{cmd.side} {cmd.qty:g} {symbol} {at}, "
+			f"take profit {tp}, stop loss {sl}")
 		return problem
 
 	async def submit_order(self, cmd: SubmitOrder, client: Client | None = None) -> str | None:

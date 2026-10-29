@@ -169,3 +169,23 @@ async def test_relay_intervals_are_independent():
 	await asyncio.sleep(0.35)
 	assert "bar" in sent
 	await relay.stop()
+
+
+async def test_stop_entries(gateway):
+	"""A breakout entry: stop (stop_price), stop limit (both); the limit may not be on the wrong side of the stop."""
+	core, alpaca, connect = gateway
+	conn = await connect()
+	await conn.send(SubmitBracket(id="s1", symbol="AAPL", side="buy", qty=10, stop_price=101, take_profit=110,
+		stop_loss=95))
+	entry = await conn.wait(lambda m: isinstance(m, Order) and m.id == "s1" and m.status == "open")
+	assert (entry.type, entry.stop_price, entry.limit_price) == ("stop", 101.0, None)
+	await conn.send(SubmitBracket(id="s2", symbol="AAPL", side="sell", qty=10, stop_price=99, limit_price=98.95,
+		take_profit=90, stop_loss=105))
+	entry = await conn.wait(lambda m: isinstance(m, Order) and m.id == "s2" and m.status == "open")
+	assert (entry.type, entry.stop_price, entry.limit_price) == ("stop_limit", 99.0, 98.95)
+	await conn.send(SubmitBracket(id="s3", symbol="AAPL", side="buy", qty=10, stop_price=101, limit_price=100.9,
+		take_profit=110, stop_loss=95))
+	await conn.send(SubmitBracket(id="s4", symbol="AAPL", side="buy", qty=10, stop_price=111, take_profit=110,
+		stop_loss=95))
+	bad = [await conn.wait(lambda m, id=id: isinstance(m, Reply) and m.id == id and not m.ok) for id in ("s3", "s4")]
+	assert "at or above" in bad[0].text and "between" in bad[1].text

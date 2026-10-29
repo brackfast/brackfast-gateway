@@ -1,4 +1,4 @@
-# Gateway protocol, version 1
+# Gateway protocol, version 2
 
 Apps talk to the gateway over a websocket: `ws://127.0.0.1:4102/` for a paper account and
 `ws://127.0.0.1:4101/` for a live one by default (IB Gateway uses 4002 / 4001). The protocol does
@@ -25,12 +25,15 @@ not depend on the broker, so an app written for it works with any gateway that s
 The gateway closes the connection with code 1008 if `hello` is missing or the protocol version is
 not supported. By default it accepts connections from the local machine only.
 
+Version 2 added `stop_price` to `submit_bracket`. A version 1 gateway would ignore it and enter at
+market, so the version changed.
+
 ## Client to gateway
 
 | msg | Fields | Effect |
 |---|---|---|
 | `hello` | `protocol` (1), `client` (name) | Opens the session. |
-| `submit_bracket` | `id`, `symbol`, `side`, `qty`, `take_profit`, `stop_loss`, `limit_price`?, `stop_loss_limit`?, `tif` (`gtc`) | An entry (market without `limit_price`, else limit) with a take profit leg and a stop loss leg. The legs get the ids `<id>.tp` and `<id>.sl`. |
+| `submit_bracket` | `id`, `symbol`, `side`, `qty`, `take_profit`, `stop_loss`, `limit_price`?, `stop_price`?, `stop_loss_limit`?, `tif` (`gtc`) | An entry with a take profit leg and a stop loss leg: market (no price), limit (`limit_price`), stop (`stop_price`) or stop limit (both). The legs get the ids `<id>.tp` and `<id>.sl`. |
 | `submit_order` | `id`, `symbol`, `side`, `qty`, `type`, `limit_price`?, `stop_price`?, `tif` (`day`), `extended_hours` | A single order of type `market`, `limit`, `stop` or `stop_limit`. |
 | `replace_order` | `id`, `limit_price`?, `stop_price`?, `qty`? | Changes a working order. The order keeps its `id`. |
 | `cancel_order` | `id` | Cancels an order. Cancelling an entry cancels its legs. |

@@ -293,13 +293,17 @@ class OrderRequest(Request, kw_only=True):
 
 	@classmethod
 	def bracket(cls, symbol: str, side: OrderSide | str, qty, *, take_profit, stop_loss,
-			limit_price=None, stop_loss_limit=None,
+			limit_price=None, stop_price=None, stop_loss_limit=None,
 			time_in_force: TimeInForce | str = TimeInForce.GTC, **kw) -> OrderRequest:
-		"""Entry (market, or limit with ``limit_price``) with a take profit and a stop loss leg."""
+		"""Entry (market; limit with ``limit_price``, stop with ``stop_price``, stop limit with both) with a
+		take profit and a stop loss leg."""
+		if stop_price is None:
+			type_ = OrderType.MARKET if limit_price is None else OrderType.LIMIT
+		else:
+			type_ = OrderType.STOP if limit_price is None else OrderType.STOP_LIMIT
 		return cls(
-			symbol=symbol, side=OrderSide(side), qty=dec(qty),
-			type=OrderType.MARKET if limit_price is None else OrderType.LIMIT,
-			limit_price=dec(limit_price), time_in_force=TimeInForce(time_in_force),
+			symbol=symbol, side=OrderSide(side), qty=dec(qty), type=type_,
+			limit_price=dec(limit_price), stop_price=dec(stop_price), time_in_force=TimeInForce(time_in_force),
 			order_class=OrderClass.BRACKET,
 			take_profit=TakeProfit(limit_price=dec(take_profit)),
 			stop_loss=StopLoss(stop_price=dec(stop_loss), limit_price=dec(stop_loss_limit)),

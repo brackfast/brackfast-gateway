@@ -11,7 +11,7 @@ from typing import Any
 
 import msgspec
 
-PROTOCOL_VERSION = 1
+PROTOCOL_VERSION = 2                    # 2: SubmitBracket's stop_price (stop / stop limit entries)
 PAPER_PORT = 4102                       # default ports (IB Gateway: 4002 paper, 4001 live)
 LIVE_PORT = 4101
 
@@ -30,14 +30,17 @@ class Hello(Message, tag="hello"):
 
 
 class SubmitBracket(Message, tag="submit_bracket"):
-	"""Entry with a take profit and a stop loss. The legs get the ids ``<id>.tp`` and ``<id>.sl``."""
+	"""Entry with a take profit and a stop loss. The legs get the ids ``<id>.tp`` and ``<id>.sl``.
+
+	The entry: market (neither price), limit (``limit_price``), stop (``stop_price``) or stop limit (both)."""
 	id: str                             # chosen by the client, unique, at most 48 characters
 	symbol: str
 	side: str                           # "buy" | "sell" (of the entry)
 	qty: float                          # whole shares
 	take_profit: float                  # limit price of the take profit leg
 	stop_loss: float                    # stop price of the stop loss leg
-	limit_price: float | None = None    # None: market entry
+	limit_price: float | None = None    # the entry's limit price
+	stop_price: float | None = None     # the entry's stop price (a breakout entry)
 	stop_loss_limit: float | None = None    # stop limit instead of stop for the stop loss leg
 	tif: str = "gtc"                    # "day" | "gtc"
 
