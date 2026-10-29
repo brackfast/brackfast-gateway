@@ -1,5 +1,5 @@
 """In-memory stand-ins for the Alpaca client, for the gateway tests: orders behave like Alpaca's
-(brackets with held legs, replace = new order, cancel of an entry cancels its legs)."""
+(brackets with held legs, OCOs, replace = new order, cancel of an entry / OCO cancels its legs)."""
 from __future__ import annotations
 
 import itertools
@@ -61,6 +61,11 @@ class FakeTrading:
 			tp = self._new(type="limit", limit_price=req.take_profit.limit_price, **common)
 			sl = self._new(type="stop", stop_price=req.stop_loss.stop_price, **common)
 			self.legs[entry.id] = [tp.id, sl.id]
+		elif req.order_class == "oco":                # the take profit is the order, the stop loss its leg (working)
+			entry = self.set(entry.id, limit_price=req.take_profit.limit_price)
+			sl = self._new(symbol=req.symbol, side=str(req.side), type="stop", stop_price=req.stop_loss.stop_price,
+				time_in_force=str(req.time_in_force), status="new", qty=req.qty, order_class="oco")
+			self.legs[entry.id] = [sl.id]
 		return self._nested(entry)
 
 	async def get_order(self, order_id: str, *, nested: bool = False) -> Order:

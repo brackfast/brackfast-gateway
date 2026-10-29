@@ -11,7 +11,7 @@ from typing import Any
 
 import msgspec
 
-PROTOCOL_VERSION = 2                    # 2: SubmitBracket's stop_price (stop / stop limit entries)
+PROTOCOL_VERSION = 3                    # 2: SubmitBracket's stop_price (stop / stop limit entries); 3: SubmitOco
 PAPER_PORT = 4102                       # default ports (IB Gateway: 4002 paper, 4001 live)
 LIVE_PORT = 4101
 
@@ -42,6 +42,20 @@ class SubmitBracket(Message, tag="submit_bracket"):
 	limit_price: float | None = None    # the entry's limit price
 	stop_price: float | None = None     # the entry's stop price (a breakout entry)
 	stop_loss_limit: float | None = None    # stop limit instead of stop for the stop loss leg
+	tif: str = "gtc"                    # "day" | "gtc"
+
+
+class SubmitOco(Message, tag="submit_oco"):
+	"""Exits of an open position: a take profit and a stop loss, one cancels the other (OCO). The take
+	profit gets ``id`` (role take_profit), the stop loss ``<id>.sl`` (role stop_loss, parent_id ``id``).
+	Cancelling either cancels both."""
+	id: str
+	symbol: str
+	side: str                           # "buy" | "sell" of the exits: "sell" for a long position
+	qty: float                          # whole shares
+	take_profit: float                  # limit price of the take profit
+	stop_loss: float                    # stop price of the stop loss
+	stop_loss_limit: float | None = None    # stop limit instead of stop for the stop loss
 	tif: str = "gtc"                    # "day" | "gtc"
 
 
@@ -246,7 +260,7 @@ class Event(Message, tag="event"):
 
 
 ClientMessage = (
-	Hello | SubmitBracket | SubmitOrder | ReplaceOrder | CancelOrder | CancelAll | ClosePosition
+	Hello | SubmitBracket | SubmitOco | SubmitOrder | ReplaceOrder | CancelOrder | CancelAll | ClosePosition
 	| FlattenAll | GetBars | Subscribe | Unsubscribe
 )
 GatewayMessage = Welcome | Status | Account | Position | Order | Fill | Reply | Bars | Bar | Quote | Event

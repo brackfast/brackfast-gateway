@@ -8,7 +8,8 @@ import pytest
 from alpacagw.client import Quote as AlpacaQuote, Trade
 from alpacagw.gateway.core import GatewayCore
 from alpacagw.protocol import (
-	PROTOCOL_VERSION, Bar, Bars, GetBars, Hello, Order, Quote, Reply, Status, SubmitBracket, Subscribe, Welcome,
+	PROTOCOL_VERSION, Bar, Bars, CancelOrder, GetBars, Hello, Order, Quote, Reply, Status, SubmitBracket, SubmitOco,
+	Subscribe, Welcome,
 	decode_gateway, encode,
 )
 
@@ -189,3 +190,23 @@ async def test_stop_entries(gateway):
 		stop_loss=95))
 	bad = [await conn.wait(lambda m, id=id: isinstance(m, Reply) and m.id == id and not m.ok) for id in ("s3", "s4")]
 	assert "at or above" in bad[0].text and "between" in bad[1].text
+
+
+async def test_oco_exits(gateway):
+	"""Exits of a position: take profit id, stop loss id.sl; cancelling the stop loss cancels the take profit's OCO."""
+	core, alpaca, connect = gateway
+	conn = await connect()
+	await conn.send(SubmitOco(id="e1", symbol="AAPL", side="sell", qty=10, take_profit=110, stop_loss=95))
+	tp = await conn.wait(lambda m: isinstance(m, Order) and m.id == "e1" and m.status == "open")
+	sl = await conn.wait(lambda m: isinstance(m, Order) and m.id == "e1.sl" and m.status == "open")
+	assert (tp.role, tp.leg_ids, tp.limit_price) == ("take_profit", ["e1.sl"], 110.0)
+	assert (sl.role, sl.parent_id, sl.stop_price, sl.side) == ("stop_loss", "e1", 95.0, "sell")
+	assert (await conn.wait(lambda m: isinstance(m, Reply) and m.id == "e1")).ok
+	await conn.send(CancelOrder(id="e1.sl"))
+	await conn.wait(lambda m: isinstance(m, Reply) and m.command == "cancel_order" and m.id == "e1.sl" and m.ok)
+	assert f"cancel {tp.broker_id}" in alpaca.trading.calls
+	await conn.send(SubmitOco(id="e2", symbol="AAPL", side="sell", qty=10, take_profit=90, stop_loss=95))
+	await conn.send(SubmitOco(id="e3", symbol="AAPL", side="buy", qty=10, take_profit=90, stop_loss=95,
+		stop_loss_limit=94))
+	bad = [await conn.wait(lambda m, id=id: isinstance(m, Reply) and m.id == id and not m.ok) for id in ("e2", "e3")]
+	assert "above the stop loss" in bad[0].text and "at or above its stop" in bad[1].text

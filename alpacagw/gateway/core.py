@@ -21,8 +21,8 @@ from .. import __version__
 from ..client import Alpaca
 from ..protocol import (
 	FINAL, PROTOCOL_VERSION, Account, CancelAll, CancelOrder, ClosePosition, Event, FlattenAll, GetBars, Hello,
-	Message, Order, Position, ReplaceOrder, Reply, Status, SubmitBracket, SubmitOrder, Subscribe, Unsubscribe,
-	Welcome, decode_client, encode,
+	Message, Order, Position, ReplaceOrder, Reply, Status, SubmitBracket, SubmitOco, SubmitOrder, Subscribe,
+	Unsubscribe, Welcome, decode_client, encode,
 )
 from .market import MarketRelay
 from .orders import OrderTracker
@@ -391,6 +391,8 @@ class GatewayCore:
 		match cmd:
 			case SubmitBracket():
 				self._spawn(self.submit_bracket(cmd, client))
+			case SubmitOco():
+				self._spawn(self.submit_oco(cmd, client))
 			case SubmitOrder():
 				self._spawn(self.submit_order(cmd, client))
 			case ReplaceOrder():
@@ -487,6 +489,36 @@ class GatewayCore:
 			f"take profit {tp}, stop loss {sl}")
 		return problem
 
+	async def submit_oco(self, cmd: SubmitOco, client: Client | None = None) -> str | None:
+		"""Exits of an open position: take profit ``id`` and stop loss ``<id>.sl``, one cancels the other."""
+		symbol = cmd.symbol.upper()
+		tp, sl, sl_limit = (round_price(p) for p in (cmd.take_profit, cmd.stop_loss, cmd.stop_loss_limit))
+		problem = self._check_new(cmd.id, symbol, cmd.side, cmd.qty) or self._check_new(f"{cmd.id}.sl", symbol,
+			cmd.side, cmd.qty)
+		if problem is None:
+			sell = cmd.side == "sell"                       # exits of a long position
+			if any(p is not None and not p > 0 for p in (tp, sl, sl_limit)) or tp is None or sl is None:
+				problem = "prices must be > 0"
+			elif (tp <= sl) if sell else (tp >= sl):
+				problem = f"take profit must be {'above' if sell else 'below'} the stop loss"
+			elif sl_limit is not None and ((sl_limit > sl) if sell else (sl_limit < sl)):
+				problem = f"the stop loss's limit must be {'at or below' if sell else 'at or above'} its stop"
+			elif cmd.tif not in ("day", "gtc"):
+				problem = "tif must be day or gtc"
+		if problem is not None:
+			self._reply(client, "submit_oco", cmd.id, problem)
+			return problem
+		origin = self._name(client)
+		take = Order(id=cmd.id, symbol=symbol, side=cmd.side, type="limit", qty=cmd.qty, status="pending",
+			role="take_profit", leg_ids=[f"{cmd.id}.sl"], limit_price=tp, tif=cmd.tif, origin=origin, created_at=_now())
+		stop = Order(id=f"{cmd.id}.sl", symbol=symbol, side=cmd.side, type="stop" if sl_limit is None else "stop_limit",
+			qty=cmd.qty, status="pending", role="stop_loss", parent_id=cmd.id, stop_price=sl, limit_price=sl_limit,
+			tif=cmd.tif, origin=origin, created_at=_now())
+		problem = await self.tracker.submit_oco(take, stop, sl_limit)
+		self._reply(client, "submit_oco", cmd.id, problem, f"{cmd.side} {cmd.qty:g} {symbol}: take profit {tp}, "
+			f"stop loss {sl}")
+		return problem
+
 	async def submit_order(self, cmd: SubmitOrder, client: Client | None = None) -> str | None:
 		symbol = cmd.symbol.upper()
 		limit, stop = round_price(cmd.limit_price), round_price(cmd.stop_price)
@@ -539,6 +571,9 @@ class GatewayCore:
 
 	async def cancel(self, id: str, client: Client | None = None) -> str | None:
 		o = self.tracker.orders.get(id)
+		parent = self.tracker.orders.get(o.parent_id) if o is not None and o.parent_id else None
+		if parent is not None and parent.role == "take_profit" and parent.status not in FINAL:
+			o = parent                   # an OCO's stop loss: Alpaca cancels both with the take profit (its order)
 		problem = "unknown order" if o is None else await self.tracker.cancel(o)
 		self._reply(client, "cancel_order", id, problem, "cancel sent")
 		return problem

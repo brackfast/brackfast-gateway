@@ -310,6 +310,19 @@ class OrderRequest(Request, kw_only=True):
 			**kw,
 		)
 
+	@classmethod
+	def oco(cls, symbol: str, side: OrderSide | str, qty, *, take_profit, stop_loss, stop_loss_limit=None,
+			time_in_force: TimeInForce | str = TimeInForce.GTC, **kw) -> OrderRequest:
+		"""Exits of an open position, one cancels the other: a take profit (the order, a limit) and a stop
+		loss (its leg). ``side`` is the exits' side."""
+		return cls(
+			symbol=symbol, side=OrderSide(side), qty=dec(qty), type=OrderType.LIMIT,
+			time_in_force=TimeInForce(time_in_force), order_class=OrderClass.OCO,
+			take_profit=TakeProfit(limit_price=dec(take_profit)),
+			stop_loss=StopLoss(stop_price=dec(stop_loss), limit_price=dec(stop_loss_limit)),
+			**kw,
+		)
+
 
 class ReplaceOrderRequest(Request, kw_only=True):
 	"""Body of PATCH /v2/orders/{id}: only the fields set are changed."""

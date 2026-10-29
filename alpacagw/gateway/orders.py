@@ -162,6 +162,12 @@ class OrderTracker:
 			time_in_force=entry.tif, client_order_id=entry.id)
 		return await self._submit(req, entry, [tp, sl])
 
+	async def submit_oco(self, tp: Order, sl: Order, stop_loss_limit: float | None) -> str | None:
+		"""Send checked exits (one cancels the other): Alpaca's order is the take profit, the stop loss its leg."""
+		req = OrderRequest.oco(tp.symbol, tp.side, tp.qty, take_profit=tp.limit_price, stop_loss=sl.stop_price,
+			stop_loss_limit=stop_loss_limit, time_in_force=tp.tif, client_order_id=tp.id)
+		return await self._submit(req, tp, [sl])
+
 	async def submit_order(self, order: Order, extended_hours: bool = False) -> str | None:
 		kw = dict(time_in_force=order.tif, client_order_id=order.id)
 		if extended_hours:
@@ -480,7 +486,7 @@ class OrderTracker:
 				return                   # someone else's order, done without a fill
 			if broker_id in self._by_broker:
 				return
-			if ao.order_class == "bracket":
+			if ao.order_class in ("bracket", "oco"):
 				top = await self._bracket_of(ao)
 				if top is not None:
 					for piece, piece_ao in self._adopt_bracket(top, count_fills=True):
@@ -506,8 +512,10 @@ class OrderTracker:
 		return "take_profit" if ao.type == "limit" else "stop_loss"
 
 	def _adopt_bracket(self, ao: AlpacaOrder, *, count_fills: bool = False) -> list[tuple[Order, AlpacaOrder]]:
+		"""A bracket (entry with legs) or an OCO (the take profit with the stop loss as its leg)."""
 		legs = list(ao.legs or ())
-		entry = self._adopt_piece(ao, "entry", "", [l.client_order_id or l.id for l in legs], count_fills)
+		role = self._leg_role(ao) if ao.order_class == "oco" else "entry"
+		entry = self._adopt_piece(ao, role, "", [l.client_order_id or l.id for l in legs], count_fills)
 		out = [(entry, ao)]
 		for leg in legs:
 			out.append((self._adopt_piece(leg, self._leg_role(leg), entry.id, [], count_fills), leg))

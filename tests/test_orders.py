@@ -155,3 +155,31 @@ async def test_load_adopts_working_brackets(setup):
 	assert tracker.orders["old-1"].status == "filled"
 	assert sorted(o.role for o in tracker.working()) == ["stop_loss", "take_profit"]
 	assert rec.fills == []                                                  # fills before the start are not reported
+
+
+async def test_oco_exits(setup):
+	"""Exits of a position: Alpaca's order is the take profit, the stop loss its leg; both working."""
+	broker, rec, tracker = setup
+	tp = Order(id="x1", symbol="AAPL", side="sell", type="limit", qty=10, status="pending", role="take_profit",
+		leg_ids=["x1.sl"], limit_price=110.0, tif="gtc")
+	sl = Order(id="x1.sl", symbol="AAPL", side="sell", type="stop", qty=10, status="pending", role="stop_loss",
+		parent_id="x1", stop_price=95.0, tif="gtc")
+	assert await tracker.submit_oco(tp, sl, None) is None
+	ao = broker.orders[tp.broker_id]
+	assert ao.order_class == "oco" and ao.client_order_id == "x1" and float(ao.limit_price) == 110
+	assert sl.broker_id == broker.legs[ao.id][0] and float(broker.orders[sl.broker_id].stop_price) == 95
+	assert (tp.status, sl.status) == ("open", "open")
+
+
+async def test_external_oco_adopted_with_its_roles(setup):
+	broker, rec, tracker = setup
+	from alpacagw.client import OrderRequest
+	ext = await broker.submit_order(OrderRequest.oco("NVDA", "sell", 3, take_profit=150, stop_loss=120,
+		client_order_id="web-oco"))
+	for o in (ext, *ext.legs):
+		tracker.on_update(broker.update(o.id, "new"))
+	await asyncio.sleep(0.15)
+	tp = tracker.orders["web-oco"]
+	assert tp.role == "take_profit" and len(tp.leg_ids) == 1
+	sl = tracker.orders[tp.leg_ids[0]]
+	assert sl.role == "stop_loss" and sl.parent_id == "web-oco"
