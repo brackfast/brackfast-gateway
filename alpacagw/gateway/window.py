@@ -38,6 +38,9 @@ TITLE_BG = imgui.ImVec4(0.11, 0.12, 0.14, 1.0)
 TITLE_TEXT = imgui.ImVec4(0.80, 0.82, 0.85, 1.0)
 BUTTON_HOVER = imgui.ImVec4(1.0, 1.0, 1.0, 0.10)
 CLOSE_HOVER = imgui.ImVec4(0.77, 0.17, 0.11, 1.0)     # Windows' close button red
+LOGO_BACKGROUND = imgui.ImVec4(0x0C / 255, 0x0E / 255, 0x15 / 255, 1.0)   # the logo's colors (assets/logo.svg)
+LOGO_BLUE = imgui.ImVec4(0x3B / 255, 0x6E / 255, 0xF5 / 255, 1.0)
+LOGO_GREEN = imgui.ImVec4(0x22 / 255, 0xAB / 255, 0x94 / 255, 1.0)
 
 log = logging.getLogger("alpacagw.window")
 _glfw_lib: Any = None
@@ -62,6 +65,8 @@ def _glfw() -> Any:
 					lib = ctypes.CDLL(path)
 					lib.glfwIconifyWindow.argtypes = [ctypes.c_void_p]
 					lib.glfwIconifyWindow.restype = None
+					lib.glfwSetWindowIcon.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_void_p]
+					lib.glfwSetWindowIcon.restype = None
 					_glfw_lib = lib
 					break
 				except (OSError, AttributeError) as exc:
@@ -93,6 +98,20 @@ def _info_icon(dl: imgui.ImDrawList, cx: float, cy: float, r: float, col: int) -
 	dl.add_line(imgui.ImVec2(cx, cy - r * 0.12), imgui.ImVec2(cx, cy + r * 0.55), col, max(1.5, r * 0.2))
 
 
+def _logo(dl: imgui.ImDrawList, x: float, y: float, size: float) -> None:
+	"""The gateway's logo (assets/logo.svg: its 256-unit drawing) at (x, y), ``size`` px square, as vector shapes."""
+	s = size / 256
+	p = lambda px, py: imgui.ImVec2(x + px * s, y + py * s)
+	blue, green = imgui.get_color_u32(LOGO_BLUE), imgui.get_color_u32(LOGO_GREEN)
+	dl.add_rect_filled(p(0, 0), p(256, 256), imgui.get_color_u32(LOGO_BACKGROUND), 52 * s)
+	dl.add_line(p(52, 128), p(204, 128), green, max(1.2, 10 * s))      # app - gateway - broker
+	for cx in (52, 204):
+		dl.add_circle_filled(p(cx, 128), 18 * s, green)
+	dl.add_rect_filled(p(84, 68), p(172, 188), blue, 22 * s)           # the gateway
+	dl.add_rect_filled(p(100, 84), p(156, 172), imgui.get_color_u32(LOGO_BACKGROUND), 6 * s)
+	dl.add_rect_filled(p(118, 112), p(138, 144), green, 4 * s)
+
+
 def _gear(dl: imgui.ImDrawList, cx: float, cy: float, r: float, col: int) -> None:
 	"""A settings gear: 8 teeth around a ring."""
 	for k in range(8):
@@ -111,6 +130,49 @@ def minimize_os_window(viewport: imgui.ImGuiViewport) -> None:
 		lib.glfwIconifyWindow(handle)
 	else:
 		log.warning("minimize: no GLFW window handle")
+
+
+def set_app_id() -> None:
+	"""Windows: the gateway's own taskbar group. Without it the taskbar groups the gateway with every program
+	that runs on the same python.exe (Brackfast, for one) and shows that group's icon instead of ours."""
+	if sys.platform != "win32":
+		return
+	try:
+		ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("AlpacaGateway.AlpacaGateway")
+	except (OSError, AttributeError) as exc:
+		log.debug("app id: %s", exc)
+
+
+class _GLFWimage(ctypes.Structure):
+	_fields_ = [("width", ctypes.c_int), ("height", ctypes.c_int), ("pixels", ctypes.c_void_p)]
+
+
+_icon_set: set[int] = set()                         # windows (GLFWwindow*) that have the icon
+_icon_images: Any = None                            # the GLFWimage array and its pixel buffers (kept alive)
+
+
+def set_window_icon(viewport: imgui.ImGuiViewport) -> None:
+	"""The gateway's icon (icon_data.py) on the OS window an imgui window lives in: its title and taskbar
+	button. Once per window; Windows and X11 (Wayland ignores window icons)."""
+	global _icon_images
+	lib = _glfw()
+	handle = _pointer(viewport.platform_handle) if lib is not None else 0
+	if not handle or handle in _icon_set:
+		return
+	_icon_set.add(handle)
+	if _icon_images is None:
+		import base64
+		import zlib
+		from .icon_data import ICONS
+		buffers = [(n, ctypes.create_string_buffer(zlib.decompress(base64.b64decode("".join(data)))))
+			for n, data in ICONS]
+		images = (_GLFWimage * len(buffers))(*(_GLFWimage(n, n, ctypes.addressof(b)) for n, b in buffers))
+		_icon_images = (images, buffers)
+	images = _icon_images[0]
+	try:
+		lib.glfwSetWindowIcon(handle, len(images), ctypes.addressof(images))
+	except (OSError, AttributeError) as exc:
+		log.debug("window icon: %s", exc)
 
 
 class GatewayWindow:
@@ -134,6 +196,7 @@ class GatewayWindow:
 		size and place are the defaults at every start."""
 		live = self.launcher.environment == "live"
 		self.title = f"Alpaca Gateway - {'LIVE' if live else 'paper'}"
+		set_app_id()                                 # before the first window: our own taskbar group
 		params = hello_imgui.RunnerParams()
 		params.app_window_params.window_title = self.title
 		params.app_window_params.hidden = True
@@ -185,6 +248,7 @@ class GatewayWindow:
 		imgui.pop_style_var()
 		wp, ws = imgui.get_window_pos(), imgui.get_window_size()
 		self.center = imgui.ImVec2(wp.x + ws.x / 2, wp.y + ws.y / 2)
+		set_window_icon(imgui.get_window_viewport())    # once per OS window: the gateway's icon
 		self._title_bar()
 		imgui.begin_child("body", imgui.ImVec2(0, 0), imgui.ChildFlags_.always_use_window_padding)
 		core = launcher.core
@@ -219,7 +283,9 @@ class GatewayWindow:
 		dl = imgui.get_window_draw_list()
 		dl.add_rect_filled(pos, imgui.ImVec2(pos.x + width, pos.y + height), imgui.get_color_u32(TITLE_BG))
 		text_h = imgui.get_text_line_height()
-		dl.add_text(imgui.ImVec2(pos.x + 12, pos.y + (height - text_h) / 2), imgui.get_color_u32(TITLE_TEXT),
+		logo = round(height * 0.78)
+		_logo(dl, pos.x + 10, pos.y + (height - logo) / 2, logo)
+		dl.add_text(imgui.ImVec2(pos.x + 10 + logo + 8, pos.y + (height - text_h) / 2), imgui.get_color_u32(TITLE_TEXT),
 			"Alpaca Gateway")
 
 		buttons = ("info", "settings", "minimize", "close")
