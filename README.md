@@ -97,6 +97,32 @@ uv run pytest              # offline: a local fake Alpaca server
 uv run python examples/demo.py config.cfg
 ```
 
+## Building the program
+
+```bash
+uv run --no-project tools/build_dist.py             # Windows and Linux; --windows / --linux for one
+uv run --no-project tools/build_dist.py --dir       # Windows as the folder dist/alpaca-gateway (to try it)
+```
+
+The output is `dist/alpaca-gateway-<version>-<date>-windows-x86_64.zip` and
+`dist/alpaca-gateway-<version>-<date>-linux-x86_64.tar.xz`, about 29 MB each. Each holds one folder
+`alpaca-gateway/` that runs as it is, with nothing to install:
+
+- **The launcher:** `Alpaca Gateway.cmd` on Windows, `alpaca-gateway` on Linux.
+- **`alpacagw/`:** the gateway as Python source. It is not compiled.
+- **`python/`:** a standalone Python 3.13 from python-build-standalone, the build uv uses. The
+  libraries from `uv.lock` are in its site-packages.
+
+Both archives can be built on either system:
+
+- **Python:** comes from its release archive and is checked against a pinned SHA-256.
+- **Libraries:** uv installs their wheels for the target platform.
+
+The downloads are kept in `build/cache`. The version is `version` in `pyproject.toml`.
+
+On Linux the Python needs glibc 2.28 or newer. The Linux build was checked headless in WSL (Ubuntu 22.04).
+`config.cfg` and `alpacagw.log` live in the program's folder.
+
 ## License
 
 MIT

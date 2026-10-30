@@ -11,3 +11,4 @@ dist/
 
 # window layout written by imgui
 *.ini
+build/
