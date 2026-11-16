@@ -1,7 +1,7 @@
 # Gateway protocol, version 3
 
-Apps talk to the gateway over a websocket: `ws://127.0.0.1:4102/` for a paper account and
-`ws://127.0.0.1:4101/` for a live one by default. The protocol does
+Apps talk to the gateway over a websocket: `ws://127.0.0.1:4102/` by default, for a paper and a live
+account alike. The protocol does
 not depend on the broker, so an app written for it works with any gateway that speaks it.
 
 ## Encoding

@@ -98,4 +98,4 @@ def test_gateway_settings(tmp_path):
 	settings.save("live", settings.GatewaySettings(), file)
 	s = settings.load("paper", file)
 	assert (s.stock_feed, s.port_for("paper"), s.host) == ("sip", 4555, "0.0.0.0")
-	assert settings.load("live", file).port_for("live") == 4101 and settings.load("live", file).host == "127.0.0.1"
+	assert settings.load("live", file).port_for("live") == 4102 and settings.load("live", file).host == "127.0.0.1"

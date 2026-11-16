@@ -40,10 +40,9 @@ CONNECTING YOUR TRADING PROGRAM
 
 Point your trading program at:
 
-    Paper account:  ws://127.0.0.1:4102/
-    Live account:   ws://127.0.0.1:4101/
+    ws://127.0.0.1:4102/
 
-These are the defaults. The port can be changed in the settings.
+The same for a paper and a live account. The port can be changed in the settings.
 
 
 YOUR ALPACA ACCOUNT: config.cfg
@@ -87,7 +86,7 @@ restart the gateway: the new settings apply from the next start.
     iex          free, from the IEX exchange only
     sip          all US exchanges (a paid Alpaca subscription)
     delayed_sip  all US exchanges, 15 minutes delayed
-- Socket Port: the port your trading programs connect to (default 4102 paper, 4101 live).
+- Socket Port: the port your trading programs connect to (default 4102).
 - Allow local connections only: on by default, so that only programs on this computer can connect.
   Turn it off only to trade from another computer in a network you trust: any computer that
   reaches the port can then trade your account.

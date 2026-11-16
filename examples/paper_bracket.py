@@ -15,14 +15,14 @@ import time
 import aiohttp
 
 from alpacagw.protocol import (
-	PAPER_PORT, PROTOCOL_VERSION, Bars, CancelOrder, GetBars, Hello, Order, Reply, ReplaceOrder, SubmitBracket,
+	PORT, PROTOCOL_VERSION, Bars, CancelOrder, GetBars, Hello, Order, Reply, ReplaceOrder, SubmitBracket,
 	Welcome, decode_gateway, encode,
 )
 
 
 async def main(symbol: str) -> int:
 	async with aiohttp.ClientSession() as session:
-		ws = await session.ws_connect(f"ws://127.0.0.1:{PAPER_PORT}/")
+		ws = await session.ws_connect(f"ws://127.0.0.1:{PORT}/")
 		orders: dict[str, Order] = {}
 		got: list = []
 

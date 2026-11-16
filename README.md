@@ -11,7 +11,7 @@ Status: early, paper accounts only so far.
 ```bash
 uv sync --extra ui
 uv run alpacagw                 # window; clients connect to ws://127.0.0.1:4102/ (paper)
-uv run alpacagw --live          # config.cfg is a live account: confirm with --live (port 4101)
+uv run alpacagw --live          # config.cfg is a live account: confirm with --live (also on 4102)
 uv run alpacagw --headless      # no window: config.cfg must hold the credentials
 ```
 

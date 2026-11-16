@@ -720,7 +720,13 @@ class GatewayWindow:
 	# -- tabs ---------------------------------------------------------------------------
 
 	def _clients(self, snap: Snapshot) -> None:
-		if not imgui.begin_table("clients", 3, imgui.TableFlags_.borders_inner_h | imgui.TableFlags_.row_bg):
+		"""The connected clients. pad_outer_x and a wider cell padding: the text keeps off the edges."""
+		pad = imgui.get_style().cell_padding
+		imgui.push_style_var(imgui.StyleVar_.cell_padding, imgui.ImVec2(pad.x + 6, pad.y + 2))
+		opened = imgui.begin_table("clients", 3, imgui.TableFlags_.borders_inner_h | imgui.TableFlags_.row_bg
+			| imgui.TableFlags_.pad_outer_x)
+		imgui.pop_style_var()
+		if not opened:
 			return
 		for name in ("Client", "Address", "Connected"):
 			imgui.table_setup_column(name)

@@ -1,7 +1,7 @@
 """Start the gateway:
 
 	alpacagw                    # window, ws://127.0.0.1:4102/ (paper)
-	alpacagw --live             # config.cfg is a live account: needs --live (port 4101)
+	alpacagw --live             # config.cfg is a live account: needs --live (the same port, 4102)
 	alpacagw --headless         # no window (server, service)
 
 The account's credentials come from config.cfg in the gateway's folder (the project folder, or the
@@ -23,7 +23,7 @@ import msgspec
 
 from .. import __version__
 from ..client import Alpaca, AlpacaConfig, Credentials, load_config
-from ..protocol import LIVE_PORT, PAPER_PORT
+from ..protocol import PORT
 from . import settings as settings_mod
 from .core import GatewayCore
 
@@ -44,7 +44,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 	p = argparse.ArgumentParser(prog="alpacagw", description=f"Alpaca Gateway {__version__}")
 	p.add_argument("--live", action="store_true", help="required when config.cfg is a live account, refused for paper")
 	p.add_argument("--host", help="interface to listen on (default from the settings: 127.0.0.1, this machine only)")
-	p.add_argument("--port", type=int, help=f"default from the settings, else {PAPER_PORT} paper, {LIVE_PORT} live")
+	p.add_argument("--port", type=int, help=f"default from the settings, else {PORT} (paper and live)")
 	p.add_argument("--headless", action="store_true", help="no window")
 	p.add_argument("--log", default="", help="log file (default: alpacagw-<environment>.log)")
 	return p.parse_args(argv)

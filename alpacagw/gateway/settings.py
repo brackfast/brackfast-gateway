@@ -13,22 +13,20 @@ from pathlib import Path
 
 import msgspec
 
-from ..protocol import LIVE_PORT, PAPER_PORT
+from ..protocol import PORT
 
 log = logging.getLogger("alpacagw.settings")
-
-DEFAULT_PORTS = {"paper": PAPER_PORT, "live": LIVE_PORT}
 
 
 class GatewaySettings(msgspec.Struct, kw_only=True):
 	stock_feed: str = ""                     # "" = the account config's stock_feed
-	port: int = 0                            # 0 = the default port of the environment
+	port: int = 0                            # 0 = the default port (4102, paper and live)
 	local_only: bool = True                  # listen on 127.0.0.1 only, else on all interfaces
 	quote_interval_ms: int = 100             # quotes to the clients at most this often per symbol (the newest)
 	bar_interval_ms: int = 250               # the forming 1m bar at most this often per symbol, when it changed
 
 	def port_for(self, environment: str) -> int:
-		return self.port or DEFAULT_PORTS[environment]
+		return self.port or PORT
 
 	@property
 	def host(self) -> str:
