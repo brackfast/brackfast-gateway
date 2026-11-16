@@ -262,8 +262,12 @@ class GatewayWindow:
 
 	@staticmethod
 	def _style() -> None:
-		"""After the theme: the font size (ImGui >= 1.92 scales its fonts to it)."""
-		imgui.get_style().font_size_base = FONT_SIZE
+		"""After the theme: the font size (ImGui >= 1.92 scales its fonts to it). The check marks grey instead of the
+		theme's blue (the only blue in the grey theme), a checked box as an unchecked one; as Brackfast."""
+		style = imgui.get_style()
+		style.font_size_base = FONT_SIZE
+		style.set_color_(imgui.Col_.check_mark, imgui.ImVec4(0.88, 0.88, 0.88, 1.0))
+		style.set_color_(imgui.Col_.checkbox_selected_bg, style.color_(imgui.Col_.frame_bg))
 
 	@staticmethod
 	def _post_init() -> None:
