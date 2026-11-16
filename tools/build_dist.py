@@ -95,7 +95,7 @@ def version() -> str:
 	pyproject.toml); the build ships that file with the source."""
 	global _version
 	if _version is None:
-		if subprocess.run(["uv", "sync", "--frozen", "--project", str(ROOT), "--reinstall-package", "alpacagw"],
+		if subprocess.run(["uv", "sync", "--frozen", "--inexact", "--project", str(ROOT), "--reinstall-package", "alpacagw"],
 				stdout=subprocess.DEVNULL).returncode:
 			sys.exit("uv sync failed")
 		text = (ROOT / "alpacagw" / "_version.py").read_text(encoding="utf-8")
