@@ -141,6 +141,20 @@ def _begin_dialog(name: str, flags: int) -> bool:
 	return opened
 
 
+def _clicked_outside() -> bool:
+	"""In a dialog (between begin_popup_modal and end_popup): a mouse click outside it, so it should close, as
+	Brackfast's. Outside: not over it nor over a popup of its own (a combo's list), which may reach past its edge.
+	Not on its first frame: the click that opened it is outside it too."""
+	if imgui.is_window_appearing() or not (imgui.is_mouse_clicked(imgui.MouseButton_.left)
+			or imgui.is_mouse_clicked(imgui.MouseButton_.right)):
+		return False
+	if not imgui.is_window_focused(imgui.FocusedFlags_.root_and_child_windows):
+		return False
+	# root_and_child_windows takes the popups opened from it in (imgui's popup hierarchy)
+	return not imgui.is_window_hovered(imgui.HoveredFlags_.root_and_child_windows
+		| imgui.HoveredFlags_.allow_when_blocked_by_active_item)
+
+
 def _row_height() -> float:
 	"""Height of a Connection Status row (and of the account bar above the table)."""
 	return imgui.get_frame_height() + 2 * imgui.get_style().cell_padding.y
@@ -465,8 +479,8 @@ class GatewayWindow:
 			except OSError as exc:
 				self.form_message = f"Not saved: {exc}"
 		imgui.same_line()
-		if imgui.button("Close", imgui.ImVec2(90, 0)) or imgui.is_key_pressed(imgui.Key.escape):
-			imgui.close_current_popup()
+		if imgui.button("Close", imgui.ImVec2(90, 0)) or imgui.is_key_pressed(imgui.Key.escape) or _clicked_outside():
+			imgui.close_current_popup()                 # as Close: unsaved changes stay unsaved
 		imgui.end_popup()
 
 	def _about_popup(self) -> None:
@@ -502,7 +516,7 @@ class GatewayWindow:
 		imgui.pop_text_wrap_pos()
 		imgui.end_child()
 		imgui.spacing()
-		if imgui.button("Close", imgui.ImVec2(90, 0)) or imgui.is_key_pressed(imgui.Key.escape):
+		if imgui.button("Close", imgui.ImVec2(90, 0)) or imgui.is_key_pressed(imgui.Key.escape) or _clicked_outside():
 			imgui.close_current_popup()
 		imgui.end_popup()
 
@@ -639,7 +653,7 @@ class GatewayWindow:
 				self.confirm = None
 				imgui.close_current_popup()
 			imgui.same_line()
-			if imgui.button("Cancel", (90, 0)) or imgui.is_key_pressed(imgui.Key.escape):
+			if imgui.button("Cancel", (90, 0)) or imgui.is_key_pressed(imgui.Key.escape) or _clicked_outside():
 				self.confirm = None
 				imgui.close_current_popup()
 			imgui.end_popup()
