@@ -2,8 +2,7 @@
 
 A local gateway between trading applications and [Alpaca](https://alpaca.markets): the one
 process that holds your API keys and talks to Alpaca's Trading and Market Data APIs. Apps
-connect to the gateway instead of to Alpaca, much as they connect to IB Gateway for Interactive
-Brokers.
+connect to the gateway instead of to Alpaca.
 
 Status: early, paper accounts only so far.
 
@@ -112,6 +111,8 @@ The output is `dist/alpaca-gateway-<version>-<date>-windows-x86_64.zip` and
 - **`alpacagw/`:** the gateway as Python source. It is not compiled.
 - **`python/`:** a standalone Python 3.13 from python-build-standalone, the build uv uses. The
   libraries from `uv.lock` are in its site-packages.
+- **`README.txt`:** [USER-README.md](USER-README.md), the guide for users (starting, the account,
+  settings, options), and `LICENSE`. This README and PROTOCOL.md are for developers and stay out.
 
 Both archives can be built on either system:
 
@@ -126,6 +127,10 @@ installs the gateway, hatch-vcs writes `alpacagw/_version.py` (not in git), whic
 the build reinstalls it first, so the archives and the program always show the current version. A commit
 after the tag gives `X.Y.(Z+1).devN+g<commit>` (and a warning from the build), uncommitted changes add
 `.d<date>`.
+
+**Changes per version:** [CHANGELOG.md](CHANGELOG.md) has a section `## X.Y.Z` for every release, written for
+users. Add it before tagging. A release build writes it to `dist/alpaca-gateway-<version>-changes.md` next to
+the archives, for the website, and stops if the section is missing. A non-release build writes none.
 
 On Linux the Python needs glibc 2.28 or newer. The Linux build was checked headless in WSL (Ubuntu 22.04).
 `config.cfg` and `alpacagw.log` live in the program's folder.

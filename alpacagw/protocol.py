@@ -12,7 +12,7 @@ from typing import Any
 import msgspec
 
 PROTOCOL_VERSION = 3                    # 2: SubmitBracket's stop_price (stop / stop limit entries); 3: SubmitOco
-PAPER_PORT = 4102                       # default ports (IB Gateway: 4002 paper, 4001 live)
+PAPER_PORT = 4102                       # default ports
 LIVE_PORT = 4101
 
 

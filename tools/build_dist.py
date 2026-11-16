@@ -11,11 +11,15 @@ one folder alpaca-gateway/:
 	alpacagw/                              the gateway, as Python source
 	python/                                a standalone Python (python-build-standalone, as uv's) with the
 	                                       dependencies in its site-packages (versions from uv.lock)
-	LICENSE, README.md, PROTOCOL.md, README.txt
+	LICENSE, README.txt                    README.txt: USER-README.md (for users; README.md and
+	                                       PROTOCOL.md are for developers and stay out)
 
 No compiled program: the gateway stays readable Python. Both archives are built on any system: the Python comes
 from its release archive (checked against its SHA-256), the wheels through uv for the target platform
 (``uv pip install --python-platform``). config.cfg is written next to the launcher at the first start.
+
+A release (a plain X.Y.Z version from the tag) also gets dist/alpaca-gateway-<version>-changes.md: that version's
+section of CHANGELOG.md, for the website. The build stops if CHANGELOG.md has none.
 """
 from __future__ import annotations
 
@@ -58,7 +62,7 @@ TARGETS = {
 # Parts of the Python not needed by the gateway (the window is imgui, not tkinter)
 SKIP_PYTHON = ("idlelib/", "tkinter/", "turtledemo/", "ensurepip/", "test/", "site-packages/pip", "tcl/",
 	"lib/tcl", "lib/tk", "lib/itcl", "lib/thread", "Tools/", "bin/idle", "bin/pip", "Scripts/")
-DOCS = ("LICENSE", "README.md", "PROTOCOL.md")
+DOCS = ("LICENSE",)                  # README.md, PROTOCOL.md: for developers, not in the archives
 
 WINDOWS_LAUNCHER = """@echo off
 rem Starts the Alpaca Gateway with the Python in this folder; pythonw: no console window stays open.
@@ -70,22 +74,6 @@ LINUX_LAUNCHER = """#!/bin/sh
 cd "$(dirname "$(readlink -f "$0")")" || exit 1
 exec ./python/bin/python3 -E -s -m alpacagw "$@"
 """
-README = """Alpaca Gateway {version}
-====================
-
-Start: {start}
-The first start writes config.cfg into this folder: fill in key_id and secret_key there, or leave them
-empty and enter them in the window (kept in memory only). Clients connect to ws://127.0.0.1:4102/ (paper).
-
-Options (also through the launcher): --live (config.cfg is a live account), --headless (no window),
---port, --host. The gateway is the Python source in alpacagw/; python/ is a standalone Python {python}
-(python-build-standalone) with the libraries it needs. Licenses: LICENSE (the gateway), python/LICENSE*
-and the packages' license files in {site_packages}.
-
-Logs: alpacagw.log in this folder. More: README.md, PROTOCOL.md (the protocol for clients).
-"""
-
-
 _version: str | None = None
 
 
@@ -100,9 +88,28 @@ def version() -> str:
 			sys.exit("uv sync failed")
 		text = (ROOT / "alpacagw" / "_version.py").read_text(encoding="utf-8")
 		_version = re.search(r"^__version__ = version = '([^']+)'", text, re.M).group(1)
-		if not re.fullmatch(r"\d+\.\d+\.\d+((a|b|rc)\d+)?", _version):
+		if not is_release(_version):
 			print(f"warning: {_version} is not a release: tag the commit (git tag -a vX.Y.Z) and commit all changes")
 	return _version
+
+
+def is_release(v: str) -> bool:
+	return re.fullmatch(r"\d+\.\d+\.\d+((a|b|rc)\d+)?", v) is not None
+
+
+def readme(v: str) -> str:
+	"""README.txt in the archive: USER-README.md under a title with the version."""
+	title = f"Alpaca Gateway {v}"
+	return f"{title}\n{'=' * len(title)}\n\n" + (ROOT / "USER-README.md").read_text(encoding="utf-8")
+
+
+def changes(v: str) -> str:
+	"""CHANGELOG.md's section of version v (without its heading), as the website lists it."""
+	text = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
+	m = re.search(rf"^## {re.escape(v)}[^\n]*\n(.*?)(?=^## |\Z)", text, re.M | re.S)
+	if m is None or not m.group(1).strip():
+		sys.exit(f"CHANGELOG.md has no section '## {v}': describe this version's changes there first")
+	return f"# Alpaca Gateway {v}\n\n{m.group(1).strip()}\n"
 
 
 def download(url: str, sha256: str) -> Path:
@@ -226,12 +233,10 @@ def build(system: str, as_dir: bool) -> Path:
 	for doc in DOCS:
 		writer.file(doc, (ROOT / doc).read_bytes())
 	if system == "windows":
-		start = 'double-click "Alpaca Gateway.cmd"'
 		writer.file("Alpaca Gateway.cmd", WINDOWS_LAUNCHER.replace("\n", "\r\n").encode())
 	else:
-		start = "double-click alpaca-gateway (or run ./alpaca-gateway in a terminal)"
 		writer.file("alpaca-gateway", LINUX_LAUNCHER.encode(), 0o755)
-	text = README.format(version=v, start=start, python=PYTHON, site_packages=target["site_packages"])
+	text = readme(v)
 	writer.file("README.txt", (text.replace("\n", "\r\n") if system == "windows" else text).encode())
 	writer.close()
 	size = sum(p.stat().st_size for p in out.rglob("*")) if out.is_dir() else out.stat().st_size
@@ -246,8 +251,16 @@ def main() -> None:
 	p.add_argument("--dir", action="store_true", help="Windows as a folder dist/alpaca-gateway instead of the zip")
 	a = p.parse_args()
 	systems = ["windows"] if a.dir else [s for s in TARGETS if getattr(a, s)] or list(TARGETS)
+	v = version()
+	notes = changes(v) if is_release(v) else None       # before building: a release without its changes stops here
 	for system in systems:
 		build(system, a.dir)
+	if notes is None:
+		print(f"no changes file: {v} is not a release")
+	elif not a.dir:
+		out = ROOT / "dist" / f"{NAME}-{v}-changes.md"
+		out.write_text(notes, encoding="utf-8", newline="\n")
+		print(f"  -> {out.relative_to(ROOT)} (CHANGELOG.md's {v})")
 
 
 if __name__ == "__main__":

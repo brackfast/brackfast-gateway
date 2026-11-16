@@ -30,7 +30,7 @@ GREY = imgui.ImVec4(0.6, 0.6, 0.6, 1.0)
 LEVEL_COLORS = {"warning": YELLOW, "error": RED}
 FONT_SIZE = 14.0                                         # pixels at 100 % display scaling
 FONT_FILE = "fonts/Roboto/Roboto-Regular.ttf"            # in imgui_bundle's assets (as Brackfast)
-ON = imgui.ImVec4(0.13, 0.55, 0.13, 1.0)               # Connection Status rows, as IB Gateway
+ON = imgui.ImVec4(0.13, 0.55, 0.13, 1.0)               # Connection Status rows
 OFF = imgui.ImVec4(0.75, 0.12, 0.12, 1.0)
 LIVE_HOVER = imgui.ImVec4(0.88, 0.20, 0.20, 1.0)
 IDLE = imgui.ImVec4(0.30, 0.32, 0.35, 1.0)
@@ -678,7 +678,7 @@ class GatewayWindow:
 		self._connection_status(snap)
 
 	def _connection_status(self, snap: Snapshot) -> None:
-		"""Connection Status as IB Gateway shows it: one row per connection, green when up, red when down."""
+		"""Connection Status: one row per connection, green when up, red when down."""
 		s = snap.status
 		n = len(snap.clients)
 		rows = [
