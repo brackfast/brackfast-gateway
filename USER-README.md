@@ -24,7 +24,7 @@ Keys entered in the window are kept in memory for this run only and never writte
 
 Once logged in, the window shows:
 
-- The account: a green PAPER ACCOUNT bar, or a red LIVE ACCOUNT bar.
+- The account: a blue PAPER ACCOUNT bar, or an orange LIVE ACCOUNT bar.
 - Connection Status: the connections to Alpaca (trading, the trading stream, the market data
   stream) and to your trading programs. Green rows are up, red rows are down; the gateway
   reconnects by itself. The market data stream stays grey until a program asks for market data.
@@ -73,7 +73,7 @@ A live account needs one extra step, so that it is never started by accident:
   Without it, the gateway refuses to start.
 - Without keys in config.cfg, choose Live in the login window.
 
-The window shows the red LIVE ACCOUNT bar while the gateway trades with real money.
+The window shows the orange LIVE ACCOUNT bar while the gateway trades with real money.
 
 
 SETTINGS

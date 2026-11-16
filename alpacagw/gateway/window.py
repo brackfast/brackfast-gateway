@@ -32,7 +32,11 @@ FONT_SIZE = 14.0                                         # pixels at 100 % displ
 FONT_FILE = "fonts/Roboto/Roboto-Regular.ttf"            # in imgui_bundle's assets (as Brackfast)
 ON = imgui.ImVec4(0.13, 0.55, 0.13, 1.0)               # Connection Status rows
 OFF = imgui.ImVec4(0.75, 0.12, 0.12, 1.0)
-LIVE_HOVER = imgui.ImVec4(0.88, 0.20, 0.20, 1.0)
+# the account kind: blue paper, orange live (green / red stay the connections' up / down)
+PAPER = imgui.ImVec4(0.21, 0.40, 0.78, 1.0)            # the PAPER ACCOUNT bar, the switch on Paper
+LIVE = imgui.ImVec4(0.86, 0.42, 0.06, 1.0)             # the LIVE ACCOUNT bar, the switch on Live, its login button
+LIVE_HOVER = imgui.ImVec4(0.95, 0.52, 0.14, 1.0)
+LIVE_TEXT = imgui.ImVec4(1.00, 0.62, 0.25, 1.0)        # "Live" next to the switch
 IDLE = imgui.ImVec4(0.30, 0.32, 0.35, 1.0)
 TITLE_BG = imgui.ImVec4(0.0, 0.0, 0.0, 1.0)                       # black
 TITLE_HEIGHT = 1.75                                 # the bar: times the frame height (as Brackfast)
@@ -399,7 +403,7 @@ class GatewayWindow:
 				elif name == "minimize":
 					minimize_os_window(imgui.get_window_viewport())
 				else:
-					self._ask("Quit the gateway?", "Connected clients lose their connection.", self._quit)
+					self._ask("Quit Gateway?", "Connected clients lose their connection.", self._quit)
 		imgui.set_cursor_screen_pos(imgui.ImVec2(pos.x, pos.y + height))
 
 	# -- settings --------------------------------------------------------------------------
@@ -576,7 +580,7 @@ class GatewayWindow:
 		ready = bool(self.login["key_id"].strip() and self.login["secret_key"].strip())
 		imgui.begin_disabled(not ready)
 		if live:
-			imgui.push_style_color(imgui.Col_.button, OFF)
+			imgui.push_style_color(imgui.Col_.button, LIVE)
 			imgui.push_style_color(imgui.Col_.button_hovered, LIVE_HOVER)
 		clicked = imgui.button("Log in to LIVE account" if live else "Log in", imgui.ImVec2(width * 0.5, 0))
 		if live:
@@ -624,26 +628,25 @@ class GatewayWindow:
 		target = 1.0 if live else 0.0
 		self.knob = min(target, self.knob + step) if self.knob < target else max(target, self.knob - step)
 		dl = imgui.get_window_draw_list()
-		track = OFF if self.knob > 0.5 else ON
+		track = LIVE if self.knob > 0.5 else PAPER
 		dl.add_rect_filled(pos, imgui.ImVec2(pos.x + w, pos.y + h), imgui.get_color_u32(track), h / 2)
 		r = h / 2 - 2.5
 		x = pos.x + h / 2 + (w - h) * self.knob
 		dl.add_circle_filled(imgui.ImVec2(x, pos.y + h / 2), r + (1 if hovered else 0),
 			imgui.get_color_u32(imgui.ImVec4(1, 1, 1, 1)))
 		imgui.same_line()
-		imgui.text_colored(RED if live else TITLE_TEXT, "Live")
+		imgui.text_colored(LIVE_TEXT if live else TITLE_TEXT, "Live")
 		return live
 
 	def _ask(self, title: str, text: str, action) -> None:
 		self.confirm = (title, text, action)          # _confirm_popup opens it (in the body's id scope)
 
 	def _confirm_popup(self) -> None:
-		if self.confirm is not None and not imgui.is_popup_open("confirm"):
-			imgui.open_popup("confirm")
+		if self.confirm is not None and not imgui.is_popup_open("###confirm"):
+			imgui.open_popup("###confirm")
 		self._center_next()
-		if _begin_dialog("confirm", imgui.WindowFlags_.always_auto_resize):
-			title, text, action = self.confirm or ("", "", None)
-			imgui.text(title)
+		title, text, action = self.confirm or ("", "", None)
+		if _begin_dialog(f"{title}###confirm", imgui.WindowFlags_.always_auto_resize):    # the question as its title
 			imgui.text_colored(GREY, text)
 			buttons = 2 * 90 + imgui.get_style().item_spacing.x     # OK and Cancel, centered
 			imgui.set_cursor_pos_x(imgui.get_cursor_pos_x() + max(0.0, (imgui.get_content_region_avail().x - buttons) / 2))
@@ -667,7 +670,7 @@ class GatewayWindow:
 		pos = imgui.get_cursor_screen_pos()
 		width, height = imgui.get_content_region_avail().x, _row_height()
 		imgui.get_window_draw_list().add_rect_filled(pos, imgui.ImVec2(pos.x + width, pos.y + height),
-			imgui.get_color_u32(OFF if live else ON), 3.0)
+			imgui.get_color_u32(LIVE if live else PAPER), 3.0)
 		size = imgui.calc_text_size(text)
 		imgui.get_window_draw_list().add_text(imgui.ImVec2(pos.x + (width - size.x) / 2, pos.y + (height - size.y) / 2),
 			imgui.get_color_u32(imgui.ImVec4(1, 1, 1, 1)), text)
