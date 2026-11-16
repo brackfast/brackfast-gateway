@@ -35,6 +35,8 @@ OFF = imgui.ImVec4(0.75, 0.12, 0.12, 1.0)
 LIVE_HOVER = imgui.ImVec4(0.88, 0.20, 0.20, 1.0)
 IDLE = imgui.ImVec4(0.30, 0.32, 0.35, 1.0)
 TITLE_BG = imgui.ImVec4(0.0, 0.0, 0.0, 1.0)                       # black
+TITLE_HEIGHT = 1.75                                 # the bar: times the frame height (as Brackfast)
+TITLE_FONT = 1.2                                    # the title: times the font size
 TITLE_TEXT = imgui.ImVec4(0.80, 0.82, 0.85, 1.0)
 BUTTON_HOVER = imgui.ImVec4(1.0, 1.0, 1.0, 0.10)
 CLOSE_HOVER = imgui.ImVec4(0.77, 0.17, 0.11, 1.0)     # Windows' close button red
@@ -124,6 +126,19 @@ def round_corners() -> None:
 	except Exception as exc:                            # never break a frame over this
 		_corners_failed = True
 		log.debug("rounded corners: %s", exc)
+
+
+TITLE_MARGIN = 4.0                                 # px above and below a dialog's title, beyond the frame padding
+
+
+def _begin_dialog(name: str, flags: int) -> bool:
+	"""begin_popup_modal with a taller title bar, as Brackfast's: imgui sizes it from the frame padding when the
+	window begins, so the padding is larger only for that."""
+	pad = imgui.get_style().frame_padding
+	imgui.push_style_var(imgui.StyleVar_.frame_padding, imgui.ImVec2(pad.x + TITLE_MARGIN, pad.y + TITLE_MARGIN))
+	opened = imgui.begin_popup_modal(name, None, flags)[0]
+	imgui.pop_style_var()
+	return opened
 
 
 def _row_height() -> float:
@@ -321,17 +336,17 @@ class GatewayWindow:
 	def _title_bar(self) -> None:
 		"""Our own title bar: the name on the left, minimize and close on the right; dragging it moves the
 		window (and with it its OS window)."""
-		height = round(imgui.get_frame_height() * 1.45)
+		height = round(imgui.get_frame_height() * TITLE_HEIGHT)
 		button_w = round(height * 1.4)
 		pos = imgui.get_cursor_screen_pos()
 		width = imgui.get_window_width()
 		dl = imgui.get_window_draw_list()
 		dl.add_rect_filled(pos, imgui.ImVec2(pos.x + width, pos.y + height), imgui.get_color_u32(TITLE_BG))
-		text_h = imgui.get_text_line_height()
+		text_h = round(imgui.get_font_size() * TITLE_FONT)
 		logo = round(height * 0.78)
 		_logo(dl, pos.x + 10, pos.y + (height - logo) / 2, logo)
-		dl.add_text(imgui.ImVec2(pos.x + 10 + logo + 8, pos.y + (height - text_h) / 2), imgui.get_color_u32(TITLE_TEXT),
-			"Alpaca Gateway")
+		dl.add_text(imgui.get_font(), text_h, imgui.ImVec2(pos.x + 10 + logo + 8, pos.y + (height - text_h) / 2),
+			imgui.get_color_u32(TITLE_TEXT), "Alpaca Gateway")
 
 		buttons = ("info", "settings", "minimize", "close")
 		imgui.set_cursor_screen_pos(pos)
@@ -394,7 +409,7 @@ class GatewayWindow:
 			self.settings_requested = False
 			imgui.open_popup("Settings")
 		self._center_next()
-		if not imgui.begin_popup_modal("Settings", None, imgui.WindowFlags_.always_auto_resize)[0]:
+		if not _begin_dialog("Settings", imgui.WindowFlags_.always_auto_resize):
 			return
 		f = self.form
 		env = self._environment()
@@ -462,7 +477,7 @@ class GatewayWindow:
 		width = imgui.get_font_size() * 30
 		imgui.set_next_window_size(imgui.ImVec2(width, 0), imgui.Cond_.always)
 		self._center_next()
-		if not imgui.begin_popup_modal("About", None, imgui.WindowFlags_.no_resize)[0]:
+		if not _begin_dialog("About", imgui.WindowFlags_.no_resize):
 			return
 		imgui.text(about.title())
 		imgui.text_colored(GREY, f"{about.COPYRIGHT}. {about.LICENSE}")
@@ -521,7 +536,7 @@ class GatewayWindow:
 			imgui.open_popup("Log in")
 		self._center_next()
 		flags = imgui.WindowFlags_.always_auto_resize | imgui.WindowFlags_.no_move
-		if not imgui.begin_popup_modal("Log in", None, flags)[0]:
+		if not _begin_dialog("Log in", flags):
 			return
 		width = imgui.get_font_size() * 24
 		imgui.text("Alpaca API key")
@@ -612,7 +627,7 @@ class GatewayWindow:
 		if self.confirm is not None and not imgui.is_popup_open("confirm"):
 			imgui.open_popup("confirm")
 		self._center_next()
-		if imgui.begin_popup_modal("confirm", None, imgui.WindowFlags_.always_auto_resize)[0]:
+		if _begin_dialog("confirm", imgui.WindowFlags_.always_auto_resize):
 			title, text, action = self.confirm or ("", "", None)
 			imgui.text(title)
 			imgui.text_colored(GREY, text)
