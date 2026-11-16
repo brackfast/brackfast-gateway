@@ -23,12 +23,12 @@ import argparse
 import hashlib
 import io
 import os
+import re
 import shutil
 import subprocess
 import sys
 import tarfile
 import tempfile
-import tomllib
 import urllib.request
 import zipfile
 from datetime import date
@@ -86,8 +86,23 @@ Logs: alpacagw.log in this folder. More: README.md, PROTOCOL.md (the protocol fo
 """
 
 
+_version: str | None = None
+
+
 def version() -> str:
-	return tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))["project"]["version"]
+	"""The gateway's version from git: the latest tag vX.Y.Z, X.Y.(Z+1).devN+g<commit> for commits after it (and
+	.d<date> with uncommitted changes). Reinstalling alpacagw rewrites alpacagw/_version.py from git (hatch-vcs,
+	pyproject.toml); the build ships that file with the source."""
+	global _version
+	if _version is None:
+		if subprocess.run(["uv", "sync", "--frozen", "--project", str(ROOT), "--reinstall-package", "alpacagw"],
+				stdout=subprocess.DEVNULL).returncode:
+			sys.exit("uv sync failed")
+		text = (ROOT / "alpacagw" / "_version.py").read_text(encoding="utf-8")
+		_version = re.search(r"^__version__ = version = '([^']+)'", text, re.M).group(1)
+		if not re.fullmatch(r"\d+\.\d+\.\d+((a|b|rc)\d+)?", _version):
+			print(f"warning: {_version} is not a release: tag the commit (git tag -a vX.Y.Z) and commit all changes")
+	return _version
 
 
 def download(url: str, sha256: str) -> Path:

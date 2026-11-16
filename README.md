@@ -118,7 +118,14 @@ Both archives can be built on either system:
 - **Python:** comes from its release archive and is checked against a pinned SHA-256.
 - **Libraries:** uv installs their wheels for the target platform.
 
-The downloads are kept in `build/cache`. The version is `version` in `pyproject.toml`.
+The downloads are kept in `build/cache`.
+
+The version is the git tag `vX.Y.Z`, nothing in the files holds it. Release with
+`git tag -a v0.2.0 -m "Alpaca Gateway 0.2.0"` and `git push origin main v0.2.0`, then build. When uv
+installs the gateway, hatch-vcs writes `alpacagw/_version.py` (not in git), which `alpacagw.__version__` reads;
+the build reinstalls it first, so the archives and the program always show the current version. A commit
+after the tag gives `X.Y.(Z+1).devN+g<commit>` (and a warning from the build), uncommitted changes add
+`.d<date>`.
 
 On Linux the Python needs glibc 2.28 or newer. The Linux build was checked headless in WSL (Ubuntu 22.04).
 `config.cfg` and `alpacagw.log` live in the program's folder.

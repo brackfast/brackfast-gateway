@@ -1,6 +1,6 @@
 [project]
 name = "alpacagw"
-version = "0.1.0"
+dynamic = ["version"]            # from the git tag (vX.Y.Z), see [tool.hatch.version]
 description = "Alpaca Gateway: a local gateway between trading apps and the Alpaca Trading / Market Data API"
 readme = "README.md"
 license = "MIT"
@@ -24,12 +24,25 @@ dev = [
 	"pytest-asyncio>=0.24",
 ]
 
-[build-system]
-requires = ["uv_build>=0.10.2,<0.11"]
-build-backend = "uv_build"
+[tool.uv]
+# reinstall the gateway (and so rewrite alpacagw/_version.py) after a commit or a new tag
+cache-keys = [{ file = "pyproject.toml" }, { git = { commit = true, tags = true } }]
 
-[tool.uv.build-backend]
-module-root = ""
+[build-system]
+requires = ["hatchling>=1.27", "hatch-vcs>=0.5"]
+build-backend = "hatchling.build"
+
+[tool.hatch.version]
+# the one place the version is defined: the latest git tag vX.Y.Z (git tag -a v0.2.0). Commits after it
+# give X.Y.(Z+1).devN+g<commit>, uncommitted changes add .d<date>
+source = "vcs"
+raw-options = { fallback_version = "0.0.0" }
+
+[tool.hatch.build.hooks.vcs]
+version-file = "alpacagw/_version.py"     # written at install / build (not in git): alpacagw.__version__
+
+[tool.hatch.build.targets.wheel]
+packages = ["alpacagw"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

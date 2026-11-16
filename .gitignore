@@ -1,4 +1,5 @@
 __pycache__/
+alpacagw/_version.py
 *.egg-info/
 .venv/
 .pytest_cache/
