@@ -34,7 +34,7 @@ ON = imgui.ImVec4(0.13, 0.55, 0.13, 1.0)               # Connection Status rows,
 OFF = imgui.ImVec4(0.75, 0.12, 0.12, 1.0)
 LIVE_HOVER = imgui.ImVec4(0.88, 0.20, 0.20, 1.0)
 IDLE = imgui.ImVec4(0.30, 0.32, 0.35, 1.0)
-TITLE_BG = imgui.ImVec4(0.11, 0.12, 0.14, 1.0)
+TITLE_BG = imgui.ImVec4(0.0, 0.0, 0.0, 1.0)                       # black
 TITLE_TEXT = imgui.ImVec4(0.80, 0.82, 0.85, 1.0)
 BUTTON_HOVER = imgui.ImVec4(1.0, 1.0, 1.0, 0.10)
 CLOSE_HOVER = imgui.ImVec4(0.77, 0.17, 0.11, 1.0)     # Windows' close button red
@@ -84,6 +84,46 @@ def _pointer(handle: Any) -> int:
 	name = ctypes.pythonapi.PyCapsule_GetName
 	name.restype, name.argtypes = ctypes.c_char_p, [ctypes.py_object]
 	return get(handle, name(handle)) or 0
+
+
+# Rounded corners of the OS windows (Windows 11), as pardus: imgui draws its windows square, so the Desktop Window
+# Manager rounds each OS window (a dialog moved out of the window has its own). ROUND_SMALL (~4 px); square for a
+# window covering a monitor or its work area (fullscreen, maximized), as Windows does. Windows 10 refuses it: no change.
+DWMWA_WINDOW_CORNER_PREFERENCE = 33
+CORNERS_ROUND_SMALL = 3
+CORNERS_SQUARE = 1
+_corners: dict[int, int] = {}                       # HWND -> the preference set
+_corners_failed = False
+
+
+def round_corners() -> None:
+	"""Before every frame (callbacks.pre_new_frame): each OS window's corner preference, set when it changes."""
+	global _corners_failed
+	if sys.platform != "win32" or _corners_failed:
+		return
+	try:
+		rects = []
+		for m in imgui.get_platform_io().monitors:
+			rects += [(m.main_pos, m.main_size), (m.work_pos, m.work_size)]
+		now = {}
+		for viewport in imgui.get_platform_io().viewports:
+			hwnd = _pointer(viewport.platform_handle_raw) if viewport.platform_window_created else 0
+			if not hwnd:
+				continue
+			p, s = viewport.pos, viewport.size
+			full = any(abs(p.x - mp.x) < 1 and abs(p.y - mp.y) < 1 and abs(s.x - ms.x) < 1 and abs(s.y - ms.y) < 1
+				for mp, ms in rects)
+			want = CORNERS_SQUARE if full else CORNERS_ROUND_SMALL
+			now[hwnd] = want
+			if _corners.get(hwnd) != want:
+				value = ctypes.c_int(want)
+				ctypes.windll.dwmapi.DwmSetWindowAttribute(ctypes.c_void_p(hwnd), DWMWA_WINDOW_CORNER_PREFERENCE,
+					ctypes.byref(value), ctypes.sizeof(value))
+		_corners.clear()                                # closed windows out: a new one may get the same handle
+		_corners.update(now)
+	except Exception as exc:                            # never break a frame over this
+		_corners_failed = True
+		log.debug("rounded corners: %s", exc)
 
 
 def _row_height() -> float:
@@ -210,6 +250,7 @@ class GatewayWindow:
 		params.fps_idling.fps_idle = 4.0
 		params.callbacks.show_gui = self.gui
 		params.callbacks.post_init = self._post_init
+		params.callbacks.pre_new_frame = round_corners
 		params.callbacks.setup_imgui_style = self._style
 		params.callbacks.load_additional_fonts = self._fonts
 		immapp.run(params)
@@ -571,6 +612,8 @@ class GatewayWindow:
 			title, text, action = self.confirm or ("", "", None)
 			imgui.text(title)
 			imgui.text_colored(GREY, text)
+			buttons = 2 * 90 + imgui.get_style().item_spacing.x     # OK and Cancel, centered
+			imgui.set_cursor_pos_x(imgui.get_cursor_pos_x() + max(0.0, (imgui.get_content_region_avail().x - buttons) / 2))
 			if imgui.button("OK", (90, 0)):
 				if action is not None:
 					action()
