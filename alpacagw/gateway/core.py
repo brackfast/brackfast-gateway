@@ -24,6 +24,7 @@ from ..protocol import (
 	Message, Order, Position, ReplaceOrder, Reply, Status, SubmitBracket, SubmitOco, SubmitOrder, Subscribe,
 	Unsubscribe, Welcome, decode_client, encode,
 )
+from . import redact
 from .market import MarketRelay
 from .orders import OrderTracker
 
@@ -139,8 +140,9 @@ class GatewayCore:
 		self.alpaca.stocks.on_disconnected(lambda _m: self._stream_state())
 		try:
 			acc = await self.alpaca.trading.get_account()
+			redact.account(acc.account_number)       # shortened in every log line from now on
 			if acc.trading_blocked or acc.account_blocked:
-				raise RuntimeError(f"Alpaca account {acc.account_number} is blocked for trading")
+				raise RuntimeError(f"Alpaca account {redact.mask_account(acc.account_number)} is blocked for trading")
 			await self._refresh()
 			self.rest_ok = True
 			await self.tracker.load()

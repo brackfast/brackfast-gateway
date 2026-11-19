@@ -63,6 +63,9 @@ into it. Open it with a text editor:
 Anyone who can read config.cfg can trade your account. If you fill in the keys, keep the folder
 private.
 
+Another file instead of config.cfg, for example one per account: start the gateway with
+--config and the file's name (see Options). It is written the same way.
+
 
 TRADING WITH REAL MONEY
 -----------------------
@@ -79,7 +82,8 @@ The window shows the orange LIVE ACCOUNT bar while the gateway trades with real 
 SETTINGS
 --------
 
-Click the gear in the window's title bar. Paper and live have separate settings. Click Save, then
+Click the gear in the window's title bar (its About tab shows the version and the software the
+gateway uses). Paper and live have separate settings. Click Save, then
 restart the gateway: the new settings apply from the next start.
 
 - Data feed: where the market data comes from.
@@ -107,8 +111,9 @@ OPTIONS
 Options can be added to the start, for example in a Windows shortcut to "Alpaca Gateway.cmd" or
 after ./alpaca-gateway on Linux:
 
-    --live          start with the live account of config.cfg
-    --headless      no window (config.cfg must then hold the keys)
+    --config FILE   the account from FILE instead of config.cfg (FILE must exist)
+    --live          start with the live account of config.cfg (or of FILE)
+    --headless      no window (config.cfg or FILE must then hold the keys)
     --port PORT     the port for this start, instead of the setting
     --host ADDRESS  the network address to listen on, instead of the setting
 

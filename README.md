@@ -13,11 +13,13 @@ uv sync --extra ui
 uv run alpacagw                 # window; clients connect to ws://127.0.0.1:4102/ (paper)
 uv run alpacagw --live          # config.cfg is a live account: confirm with --live (also on 4102)
 uv run alpacagw --headless      # no window: config.cfg must hold the credentials
+uv run alpacagw --config other.cfg   # another account file (it must exist)
 ```
 
 The account comes from `config.cfg` in the gateway's folder: the project folder, or the folder of
 the executable. If the file is missing, the gateway writes a template there. The gateway only reads
-it and never writes credentials.
+it and never writes credentials. `--config FILE` takes another file instead (a relative
+name: in the current folder, else in the gateway's folder); it must exist, no template is written for it.
 
 If `key_id` / `secret_key` are empty, the window asks for them at start. Credentials entered there
 are kept in memory for that run only.

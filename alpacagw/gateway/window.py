@@ -164,13 +164,6 @@ def _row_height() -> float:
 	return imgui.get_frame_height() + 2 * imgui.get_style().cell_padding.y
 
 
-def _info_icon(dl: imgui.ImDrawList, cx: float, cy: float, r: float, col: int) -> None:
-	"""An "i" in a circle."""
-	dl.add_circle(imgui.ImVec2(cx, cy), r, col, 0, max(1.2, r * 0.16))
-	dl.add_circle_filled(imgui.ImVec2(cx, cy - r * 0.45), max(1.0, r * 0.14), col)
-	dl.add_line(imgui.ImVec2(cx, cy - r * 0.12), imgui.ImVec2(cx, cy + r * 0.55), col, max(1.5, r * 0.2))
-
-
 def _logo(dl: imgui.ImDrawList, x: float, y: float, size: float) -> None:
 	"""The gateway's logo (assets/logo.svg: its 256-unit drawing) at (x, y), ``size`` px square, as vector shapes."""
 	s = size / 256
@@ -260,7 +253,8 @@ class GatewayWindow:
 		self.form: dict[str, str] = {}                          # the settings dialog's fields
 		self.form_message = ""
 		self.settings_requested = False
-		self.about_requested = False
+		self.gateway_tab_size = imgui.ImVec2(0, 0)    # the settings' Gateway tab: About takes its size
+		self.about_tab_height = 0.0                  # and About's height, when taller: the Gateway tab is padded to it
 		self.title = "Alpaca Gateway"
 
 	def run(self) -> None:
@@ -347,7 +341,6 @@ class GatewayWindow:
 				imgui.end_tab_bar()
 		self._confirm_popup()
 		self._settings_popup()
-		self._about_popup()
 		imgui.end_child()
 		imgui.end()
 
@@ -366,7 +359,7 @@ class GatewayWindow:
 		dl.add_text(imgui.get_font(), text_h, imgui.ImVec2(pos.x + 10 + logo + 8, pos.y + (height - text_h) / 2),
 			imgui.get_color_u32(TITLE_TEXT), "Alpaca Gateway")
 
-		buttons = ("info", "settings", "minimize", "close")
+		buttons = ("settings", "minimize", "close")       # About: a tab of the settings
 		imgui.set_cursor_screen_pos(pos)
 		imgui.invisible_button("##drag", imgui.ImVec2(max(1.0, width - len(buttons) * button_w), height))
 		if imgui.is_item_active() and imgui.is_mouse_dragging(imgui.MouseButton_.left, 0.0):
@@ -384,21 +377,17 @@ class GatewayWindow:
 					imgui.get_color_u32(CLOSE_HOVER if name == "close" else BUTTON_HOVER))
 			cx, cy, s = x + button_w / 2, pos.y + height / 2, round(height * 0.16)
 			col = imgui.get_color_u32(imgui.ImVec4(1, 1, 1, 1) if hovered else TITLE_TEXT)
-			if name == "info":
-				_info_icon(dl, cx, cy, s * 1.25, col)
-			elif name == "settings":
+			if name == "settings":
 				_gear(dl, cx, cy, s * 1.25, col)
 			elif name == "minimize":
 				dl.add_line(imgui.ImVec2(cx - s, cy), imgui.ImVec2(cx + s, cy), col, 1.0)
 			else:
 				dl.add_line(imgui.ImVec2(cx - s, cy - s), imgui.ImVec2(cx + s, cy + s), col, 1.0)
 				dl.add_line(imgui.ImVec2(cx - s, cy + s), imgui.ImVec2(cx + s, cy - s), col, 1.0)
-			if hovered and name in ("info", "settings"):
-				imgui.set_tooltip("About" if name == "info" else "Settings")
+			if hovered and name == "settings":
+				imgui.set_tooltip("Settings and About")
 			if clicked:
-				if name == "info":
-					self.about_requested = True
-				elif name == "settings":
+				if name == "settings":
 					self._open_settings()
 				elif name == "minimize":
 					minimize_os_window(imgui.get_window_viewport())
@@ -429,6 +418,47 @@ class GatewayWindow:
 		self._center_next()
 		if not _begin_dialog("Settings", imgui.WindowFlags_.always_auto_resize):
 			return
+		about_tab = False
+		if imgui.begin_tab_bar("settings_tabs"):
+			if imgui.begin_tab_item("Gateway")[0]:
+				imgui.begin_group()
+				top = imgui.get_cursor_pos_y()
+				self._gateway_tab()
+				# as tall as About: the dialog stays put (the dummy's own spacing after it counted)
+				pad = self.about_tab_height - (imgui.get_cursor_pos_y() - top) - imgui.get_style().item_spacing.y
+				if pad > 0:
+					imgui.dummy(imgui.ImVec2(1, pad))
+				imgui.end_group()
+				self.gateway_tab_size = imgui.get_item_rect_size()    # About takes its width
+				imgui.end_tab_item()
+			if imgui.begin_tab_item("About")[0]:
+				about_tab = True
+				top = imgui.get_cursor_pos_y()
+				self._about_tab()
+				self.about_tab_height = imgui.get_cursor_pos_y() - top
+				imgui.end_tab_item()
+			imgui.end_tab_bar()
+		imgui.spacing()
+		imgui.separator()
+		imgui.begin_disabled(about_tab)
+		if imgui.button("Save", imgui.ImVec2(90, 0)):
+			f = self.form
+			s = settings_mod.GatewaySettings(stock_feed=f["stock_feed"], port=f["port"], local_only=f["local_only"],
+				quote_interval_ms=f["quote_interval_ms"], bar_interval_ms=f["bar_interval_ms"])
+			try:
+				settings_mod.save(self._environment(), s)
+				self.form_message = "Saved. Restart the gateway to use the new settings."
+				log.info("settings saved to %s; they apply after a restart", settings_mod.path())
+			except OSError as exc:
+				self.form_message = f"Not saved: {exc}"
+		imgui.end_disabled()
+		imgui.same_line()
+		if imgui.button("Close", imgui.ImVec2(90, 0)) or imgui.is_key_pressed(imgui.Key.escape) or _clicked_outside():
+			imgui.close_current_popup()                 # as Close: unsaved changes stay unsaved
+		imgui.end_popup()
+
+	def _gateway_tab(self) -> None:
+		"""The settings of the gateway running (paper or live): data feed, port, local only, update intervals."""
 		f = self.form
 		env = self._environment()
 		imgui.text_colored(GREY, f"Settings of the {env} gateway")
@@ -471,42 +501,22 @@ class GatewayWindow:
 		if self.form_message:
 			imgui.spacing()
 			imgui.text_colored(YELLOW, self.form_message)
-		imgui.spacing()
-		imgui.separator()
-		if imgui.button("Save", imgui.ImVec2(90, 0)):
-			s = settings_mod.GatewaySettings(stock_feed=f["stock_feed"], port=f["port"], local_only=f["local_only"],
-				quote_interval_ms=f["quote_interval_ms"], bar_interval_ms=f["bar_interval_ms"])
-			try:
-				settings_mod.save(env, s)
-				self.form_message = "Saved. Restart the gateway to use the new settings."
-				log.info("settings saved to %s; they apply after a restart", settings_mod.path())
-			except OSError as exc:
-				self.form_message = f"Not saved: {exc}"
-		imgui.same_line()
-		if imgui.button("Close", imgui.ImVec2(90, 0)) or imgui.is_key_pressed(imgui.Key.escape) or _clicked_outside():
-			imgui.close_current_popup()                 # as Close: unsaved changes stay unsaved
-		imgui.end_popup()
 
-	def _about_popup(self) -> None:
-		"""Version, copyright and the libraries with their authors and licenses."""
-		if self.about_requested:
-			self.about_requested = False
-			imgui.open_popup("About")
-		width = imgui.get_font_size() * 30
-		imgui.set_next_window_size(imgui.ImVec2(width, 0), imgui.Cond_.always)
-		self._center_next()
-		if not _begin_dialog("About", imgui.WindowFlags_.no_resize):
-			return
+	def _about_tab(self) -> None:
+		"""Settings -> About: version, copyright and the libraries with their authors and licenses; as large as the
+		Gateway tab."""
+		size = self.gateway_tab_size
+		width = max(imgui.get_font_size() * 24, size.x)
+		start = imgui.get_cursor_pos_y()
+		imgui.push_text_wrap_pos(imgui.get_cursor_pos_x() + width)
 		imgui.text(about.title())
 		imgui.text_colored(GREY, f"{about.COPYRIGHT}. {about.LICENSE}")
-		imgui.push_text_wrap_pos(0.0)
 		imgui.text_colored(GREY, about.DISCLAIMER)
 		imgui.pop_text_wrap_pos()
 		imgui.spacing()
-		imgui.separator()
-		imgui.text("This software uses the following libraries:")
-		imgui.begin_child("libraries", imgui.ImVec2(0, imgui.get_text_line_height_with_spacing() * 14),
-			imgui.ChildFlags_.borders)
+		used = imgui.get_cursor_pos_y() - start
+		rows = max(imgui.get_text_line_height_with_spacing() * 6, size.y - used - imgui.get_style().item_spacing.y)
+		imgui.begin_child("libraries", imgui.ImVec2(width, rows), imgui.ChildFlags_.borders)
 		imgui.push_text_wrap_pos(0.0)
 		for lib in about.LIBRARIES:
 			version = f" {lib.version}" if lib.version else ""
@@ -519,10 +529,6 @@ class GatewayWindow:
 			imgui.spacing()
 		imgui.pop_text_wrap_pos()
 		imgui.end_child()
-		imgui.spacing()
-		if imgui.button("Close", imgui.ImVec2(90, 0)) or imgui.is_key_pressed(imgui.Key.escape) or _clicked_outside():
-			imgui.close_current_popup()
-		imgui.end_popup()
 
 	def _quit(self) -> None:
 		if self.launcher.core is not None:

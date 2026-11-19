@@ -71,7 +71,8 @@ class Credentials:
 		return {"action": "auth", "key": self.key_id, "secret": self.secret_key}
 
 	def __repr__(self) -> str:
-		return f"Credentials(key_id={self.key_id!r})"
+		shown = f"{self.key_id[:4]}…" if len(self.key_id) > 8 else "…"   # not the whole id either: reprs reach logs
+		return f"Credentials(key_id={shown!r})"
 
 
 class AlpacaConfig(msgspec.Struct, kw_only=True):

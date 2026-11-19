@@ -10,6 +10,8 @@ What each version brings, for users. The build writes the section of the version
   bars count. Odd lots at old prices and trades priced off the market (average price, derivatively priced)
   drew long wicks into it until the minute's bar arrived. A late trade of a finished minute no longer
   starts a forming bar for it again.
+- **Another account file:** `--config FILE` reads the account from FILE instead of config.cfg (for
+  example one file per account).
 
 ## 0.1.0
 

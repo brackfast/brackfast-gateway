@@ -3,9 +3,10 @@
 	alpacagw                    # window, ws://127.0.0.1:4102/ (paper)
 	alpacagw --live             # config.cfg is a live account: needs --live (the same port, 4102)
 	alpacagw --headless         # no window (server, service)
+	alpacagw --config other.cfg # another account file than config.cfg
 
 The account's credentials come from config.cfg in the gateway's folder (the project folder, or the
-folder of the executable); the gateway only reads it. Port, local-only and data feed come from the
+folder of the executable), or from the file given with --config; the gateway only reads it. Port, local-only and data feed come from the
 settings (the window's gear), the command line overrides them.
 """
 from __future__ import annotations
@@ -24,7 +25,7 @@ import msgspec
 from .. import __version__
 from ..client import Alpaca, AlpacaConfig, Credentials, load_config
 from ..protocol import PORT
-from . import settings as settings_mod
+from . import redact, settings as settings_mod
 from .core import GatewayCore
 
 CONFIG_FILE = "config.cfg"
@@ -42,7 +43,10 @@ LOG_FORMAT = "%(asctime)s.%(msecs)03d | %(name)-18s | %(levelname)-7s | %(messag
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 	p = argparse.ArgumentParser(prog="alpacagw", description=f"Alpaca Gateway {__version__}")
-	p.add_argument("--live", action="store_true", help="required when config.cfg is a live account, refused for paper")
+	p.add_argument("--config", metavar="FILE", help=f"the account file (default: {CONFIG_FILE} in the gateway's folder; "
+		"a file given here must exist)")
+	p.add_argument("--live", action="store_true", help="required when the account file is a live account, refused for "
+		"paper")
 	p.add_argument("--host", help="interface to listen on (default from the settings: 127.0.0.1, this machine only)")
 	p.add_argument("--port", type=int, help=f"default from the settings, else {PORT} (paper and live)")
 	p.add_argument("--headless", action="store_true", help="no window")
@@ -59,6 +63,7 @@ def setup_logging(path: str) -> None:
 	file = RotatingFileHandler(path, maxBytes=20_000_000, backupCount=5, encoding="utf-8")
 	file.setFormatter(logging.Formatter(LOG_FORMAT, "%Y-%m-%d %H:%M:%S"))
 	root.addHandler(file)
+	redact.install(console, file)                # no key, secret or full account number in the log
 	logging.getLogger("aiohttp.access").setLevel(logging.WARNING)
 
 
@@ -127,6 +132,8 @@ def make_core(config: AlpacaConfig, host: str | None, port: int | None) -> Gatew
 	"""The gateway for an account: host, port and data feed from its environment's settings, unless
 	given on the command line."""
 	log = logging.getLogger("alpacagw")
+	if config.credentials is not None:
+		redact.credentials(config.credentials.key_id, config.credentials.secret_key)
 	settings = settings_mod.load(config.environment)
 	host = host or settings.host
 	port = port or settings.port_for(config.environment)
@@ -141,7 +148,16 @@ def make_core(config: AlpacaConfig, host: str | None, port: int | None) -> Gatew
 
 def main(argv: list[str] | None = None) -> int:
 	args = parse_args(argv)
-	cfg = config_path()
+	if args.config:                              # another account file: it must be there (a typo starts nothing)
+		given = Path(args.config).expanduser()
+		cfg = given.resolve()
+		if not cfg.is_file() and not given.is_absolute() and (program_folder() / given).is_file():
+			cfg = (program_folder() / given).resolve()   # a name next to config.cfg (a shortcut's own start folder)
+		if not cfg.is_file():
+			print(f"alpacagw: account file {cfg} not found", file=sys.stderr)
+			return 2
+	else:
+		cfg = config_path()
 	if not cfg.is_file():
 		cfg.write_text(TEMPLATE, encoding="utf-8")
 		print(f"alpacagw: {cfg} did not exist: a template was written. Credentials left empty there are asked "
