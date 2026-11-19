@@ -123,6 +123,39 @@ async def test_bars_and_live_data(gateway):
 	assert bar.ts == t0.replace(second=0)
 
 
+async def test_forming_bar_prices_only_from_priced_trades():
+	"""Odd lots and derivatively priced trades (conditions I, 4, ...) count in the volume but set no price (as
+	Alpaca's bars); after Alpaca's bar for a minute, a late trade of it starts no forming bar again."""
+	from datetime import datetime, timezone
+	from alpacagw.client import Bar as AlpacaBar
+	from alpacagw.gateway.market import MarketRelay
+	alpaca = FakeAlpaca()
+	sent = []
+	relay = MarketRelay(alpaca, publish=lambda kind, symbol, msg: sent.append(msg), quote_interval=0.01,
+		bar_interval=0.01)
+	await relay.start()
+	relay.add(["NVDA"], quotes=False, bars=True)
+	t0 = datetime(2026, 11, 19, 14, 37, 1, tzinfo=timezone.utc)
+	alpaca.stocks.emit(Trade(symbol="NVDA", timestamp=t0, price=153.11, size=1, conditions=["@", "I"]))   # odd lot
+	await asyncio.sleep(0.05)
+	assert sent == []                                       # volume only: nothing to send yet
+	alpaca.stocks.emit(Trade(symbol="NVDA", timestamp=t0.replace(second=2), price=157.10, size=100, conditions=["@"]))
+	alpaca.stocks.emit(Trade(symbol="NVDA", timestamp=t0.replace(second=3), price=156.58, size=65,
+		conditions=["@", "4", "I"]))
+	alpaca.stocks.emit(Trade(symbol="NVDA", timestamp=t0.replace(second=4), price=157.20, size=200, conditions=["@", "F"]))
+	await asyncio.sleep(0.05)
+	bar = sent[-1]
+	assert (bar.open, bar.high, bar.low, bar.close, bar.volume, bar.complete) == (157.10, 157.20, 157.10, 157.20, 366.0,
+		False)
+	minute = t0.replace(second=0)
+	alpaca.stocks.emit(AlpacaBar(symbol="NVDA", timestamp=minute, open=157.1, high=157.2, low=157.1, close=157.2,
+		volume=366))
+	alpaca.stocks.emit(Trade(symbol="NVDA", timestamp=t0.replace(second=59), price=150.0, size=100, conditions=["@"]))
+	await asyncio.sleep(0.05)
+	assert sent[-1].complete and sent[-1].low == 157.1     # the late trade sent no forming bar for the minute
+	await relay.stop()
+
+
 def test_stop_from_another_thread_twice():
 	"""The window's way: the gateway on its own loop in a thread; Quit stops it, and closing the window
 	asks again once the loop is closed (that raised "Event loop is closed")."""

@@ -88,8 +88,10 @@ Timeframes: `1m` `2m` `5m` `15m` `30m` `1h` `1D` `1W` `1M`.
 ### Live bars
 
 - While a minute is forming, its bar is sent with `complete: false`, at most 4 times a second
-  and only when it changes. It is built from trades.
+  and only when it changes. It is built from trades: the prices from those the broker's bars count (not
+  odd lots, average price or derivatively priced trades, ...), the volume from all.
 - Shortly after the minute ends, the broker's own bar for it arrives with `complete: true` and
   replaces the forming one. A correction of a complete bar comes as another `complete: true`
-  bar with the same `ts`.
+  bar with the same `ts`. Both can come after the next minute's first forming bar: a client
+  replaces the minute it belongs to, not the newest one.
 - Quotes are sent at most 10 times a second per symbol, always the newest.

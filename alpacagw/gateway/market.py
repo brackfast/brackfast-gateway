@@ -39,14 +39,40 @@ def lookback(timeframe: str, limit: int) -> timedelta:
 	return step * limit * 1.6 + timedelta(days=7)
 
 
+# Trade conditions that do not set a bar's open, high, low or close (the consolidated tape's rules, as Alpaca builds
+# its minute bars): odd lot (I), average price (W, B), derivatively priced (4), qualified contingent (7, V), sold
+# out of sequence (Z, U), cash (C), next day (N), seller (R), price variation (H), prior reference price (P),
+# official open / close (Q, M), corrected close (9). Their volume counts. Checked against Alpaca's 1m bars (NVDA,
+# 2026-11-19): without them the trades give the bars' open, high, low and close exactly, all trades their volume;
+# with them, odd lots at old prices and derivatively priced trades drew wicks into the forming bar.
+UNPRICED = frozenset("IWB47VZUCNRHPQM9")
+
+
+def priced(t: Trade) -> bool:
+	return not UNPRICED.intersection(t.conditions)
+
+
 class _Forming:
+	"""The forming minute from the trades: open / high / low / close from the priced ones (None until the first),
+	the volume from all."""
 	__slots__ = ("ts", "open", "high", "low", "close", "volume", "dirty")
 
-	def __init__(self, ts: datetime, price: float, size: float) -> None:
+	def __init__(self, ts: datetime) -> None:
 		self.ts = ts
-		self.open = self.high = self.low = self.close = price
-		self.volume = size
-		self.dirty = True
+		self.open = self.high = self.low = self.close = None
+		self.volume = 0.0
+		self.dirty = False
+
+	def add(self, t: Trade) -> None:
+		self.volume += t.size
+		if priced(t):
+			if self.open is None:
+				self.open = self.high = self.low = t.price
+			else:
+				self.high = max(self.high, t.price)
+				self.low = min(self.low, t.price)
+			self.close = t.price
+		self.dirty = self.open is not None           # nothing to send before the first priced trade
 
 
 def _minute(ts: datetime) -> datetime:
@@ -64,6 +90,7 @@ class MarketRelay:
 		self._quote_refs: dict[str, int] = {}
 		self._bar_refs: dict[str, int] = {}
 		self._forming: dict[str, _Forming] = {}
+		self._complete: dict[str, datetime] = {}      # per symbol: the newest minute Alpaca sent its bar for
 		self._quotes: dict[str, AlpacaQuote] = {}     # newest quote not sent yet
 		self._started = False
 		self._flusher: asyncio.Task | None = None
@@ -142,6 +169,7 @@ class MarketRelay:
 				stocks.unsubscribe("bars", symbol)
 				stocks.unsubscribe("updatedBars", symbol)
 				self._forming.pop(symbol, None)
+				self._complete.pop(symbol, None)
 
 	@staticmethod
 	def _ref(refs: dict[str, int], symbol: str, delta: int) -> int:
@@ -165,17 +193,15 @@ class MarketRelay:
 		if t.symbol not in self._bar_refs:
 			return
 		minute = _minute(t.timestamp)
+		done = self._complete.get(t.symbol)
+		if done is not None and minute <= done:
+			return                       # the official bar is out: it (or its correction) has this trade
 		f = self._forming.get(t.symbol)
 		if f is None or minute > f.ts:
-			self._forming[t.symbol] = _Forming(minute, t.price, t.size)
-			return
-		if minute < f.ts:
+			f = self._forming[t.symbol] = _Forming(minute)
+		elif minute < f.ts:
 			return                       # late trade of a finished minute: the official bar has it
-		f.high = max(f.high, t.price)
-		f.low = min(f.low, t.price)
-		f.close = t.price
-		f.volume += t.size
-		f.dirty = True
+		f.add(t)
 
 	def _on_quote(self, q: AlpacaQuote) -> None:
 		if q.symbol in self._quote_refs:
@@ -187,6 +213,9 @@ class MarketRelay:
 		f = self._forming.get(b.symbol)
 		if f is not None and f.ts <= b.timestamp:
 			del self._forming[b.symbol]  # the official bar replaces what the trades built
+		done = self._complete.get(b.symbol)
+		if done is None or b.timestamp > done:
+			self._complete[b.symbol] = b.timestamp      # later trades of this minute start no forming bar again
 		self.publish("bar", b.symbol, Bar(symbol=b.symbol, ts=b.timestamp, open=b.open, high=b.high, low=b.low,
 			close=b.close, volume=b.volume, complete=True))
 

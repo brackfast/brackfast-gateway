@@ -4,6 +4,13 @@ What each version brings, for users. The build writes the section of the version
 `dist/alpaca-gateway-<version>-changes.md`, next to the archives (for the website). Add a section
 `## X.Y.Z` before tagging `vX.Y.Z`; the newest comes first.
 
+## Next
+
+- **Live bars without false wicks:** the forming minute takes its prices only from the trades Alpaca's own
+  bars count. Odd lots at old prices and trades priced off the market (average price, derivatively priced)
+  drew long wicks into it until the minute's bar arrived. A late trade of a finished minute no longer
+  starts a forming bar for it again.
+
 ## 0.1.0
 
 The first release.
