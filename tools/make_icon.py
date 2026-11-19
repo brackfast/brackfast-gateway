@@ -27,13 +27,13 @@ def draw(size: int) -> Image.Image:
 	img = Image.new("RGBA", (big, big), (0, 0, 0, 0))
 	d = ImageDraw.Draw(img)
 	box = lambda x0, y0, x1, y1: (x0 * s, y0 * s, x1 * s, y1 * s)
-	d.rounded_rectangle(box(0, 0, 256, 256), radius=52 * s, fill=BACKGROUND)
-	d.line([(52 * s, 128 * s), (204 * s, 128 * s)], fill=GREEN, width=round(10 * s))    # app - gateway - broker
-	for cx in (52, 204):
-		d.ellipse(box(cx - 18, 110, cx + 18, 146), fill=GREEN)
-	d.rounded_rectangle(box(84, 68, 172, 188), radius=22 * s, fill=BLUE)                 # the gateway: 16 wide border
-	d.rounded_rectangle(box(100, 84, 156, 172), radius=6 * s, fill=BACKGROUND)
-	d.rounded_rectangle(box(118, 112, 138, 144), radius=4 * s, fill=GREEN)
+	d.rounded_rectangle(box(0, 0, 256, 256), radius=52 * s, fill=BACKGROUND)            # the dark tile
+	d.line([(40 * s, 128 * s), (216 * s, 128 * s)], fill=GREEN, width=round(28 * s))    # app - gateway - broker
+	for cx in (40, 216):
+		d.ellipse(box(cx - 30, 98, cx + 30, 158), fill=GREEN)
+	d.rounded_rectangle(box(72, 30, 184, 226), radius=34 * s, fill=BLUE)                # the gateway: a 28 wide frame
+	d.rounded_rectangle(box(100, 58, 156, 198), radius=6 * s, fill=BACKGROUND)
+	d.rounded_rectangle(box(113, 100, 143, 156), radius=6 * s, fill=GREEN)               # its light
 	return img.resize((size, size), Image.LANCZOS)
 
 

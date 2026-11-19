@@ -168,14 +168,15 @@ def _logo(dl: imgui.ImDrawList, x: float, y: float, size: float) -> None:
 	"""The gateway's logo (assets/logo.svg: its 256-unit drawing) at (x, y), ``size`` px square, as vector shapes."""
 	s = size / 256
 	p = lambda px, py: imgui.ImVec2(x + px * s, y + py * s)
-	blue, green = imgui.get_color_u32(LOGO_BLUE), imgui.get_color_u32(LOGO_GREEN)
-	dl.add_rect_filled(p(0, 0), p(256, 256), imgui.get_color_u32(LOGO_BACKGROUND), 52 * s)
-	dl.add_line(p(52, 128), p(204, 128), green, max(1.2, 10 * s))      # app - gateway - broker
-	for cx in (52, 204):
-		dl.add_circle_filled(p(cx, 128), 18 * s, green)
-	dl.add_rect_filled(p(84, 68), p(172, 188), blue, 22 * s)           # the gateway
-	dl.add_rect_filled(p(100, 84), p(156, 172), imgui.get_color_u32(LOGO_BACKGROUND), 6 * s)
-	dl.add_rect_filled(p(118, 112), p(138, 144), green, 4 * s)
+	blue, green, dark = (imgui.get_color_u32(LOGO_BLUE), imgui.get_color_u32(LOGO_GREEN),
+		imgui.get_color_u32(LOGO_BACKGROUND))
+	dl.add_rect_filled(p(0, 0), p(256, 256), dark, 52 * s)             # the dark tile
+	dl.add_line(p(40, 128), p(216, 128), green, max(1.5, 28 * s))      # app - gateway - broker
+	for cx in (40, 216):
+		dl.add_circle_filled(p(cx, 128), 30 * s, green)
+	dl.add_rect_filled(p(72, 30), p(184, 226), blue, 34 * s)           # the gateway: a 28 wide blue frame
+	dl.add_rect_filled(p(100, 58), p(156, 198), dark, 6 * s)
+	dl.add_rect_filled(p(113, 100), p(143, 156), green, 6 * s)          # its light
 
 
 def _gear(dl: imgui.ImDrawList, cx: float, cy: float, r: float, col: int) -> None:
@@ -253,8 +254,7 @@ class GatewayWindow:
 		self.form: dict[str, str] = {}                          # the settings dialog's fields
 		self.form_message = ""
 		self.settings_requested = False
-		self.gateway_tab_size = imgui.ImVec2(0, 0)    # the settings' Gateway tab: About takes its size
-		self.about_tab_height = 0.0                  # and About's height, when taller: the Gateway tab is padded to it
+		self.settings_pane = imgui.ImVec2(0, 0)       # the largest settings tab seen: its pane's size (all tabs take it)
 		self.title = "Alpaca Gateway"
 
 	def run(self) -> None:
@@ -421,21 +421,15 @@ class GatewayWindow:
 		about_tab = False
 		if imgui.begin_tab_bar("settings_tabs"):
 			if imgui.begin_tab_item("Gateway")[0]:
-				imgui.begin_group()
-				top = imgui.get_cursor_pos_y()
+				self._pane_begin()
 				self._gateway_tab()
-				# as tall as About: the dialog stays put (the dummy's own spacing after it counted)
-				pad = self.about_tab_height - (imgui.get_cursor_pos_y() - top) - imgui.get_style().item_spacing.y
-				if pad > 0:
-					imgui.dummy(imgui.ImVec2(1, pad))
-				imgui.end_group()
-				self.gateway_tab_size = imgui.get_item_rect_size()    # About takes its width
+				self._pane_end()
 				imgui.end_tab_item()
 			if imgui.begin_tab_item("About")[0]:
 				about_tab = True
-				top = imgui.get_cursor_pos_y()
+				self._pane_begin()
 				self._about_tab()
-				self.about_tab_height = imgui.get_cursor_pos_y() - top
+				self._pane_end()
 				imgui.end_tab_item()
 			imgui.end_tab_bar()
 		imgui.spacing()
@@ -457,6 +451,18 @@ class GatewayWindow:
 			imgui.close_current_popup()                 # as Close: unsaved changes stay unsaved
 		imgui.end_popup()
 
+	def _pane_begin(self) -> None:
+		"""The open tab in a framed pane, as large as the largest tab seen (as Brackfast's settings): the dialog
+		keeps its size when the tab changes."""
+		imgui.set_next_window_size_constraints(self.settings_pane, imgui.ImVec2(1e6, 1e6))
+		imgui.begin_child("pane", imgui.ImVec2(0, 0), imgui.ChildFlags_.borders | imgui.ChildFlags_.auto_resize_x
+			| imgui.ChildFlags_.auto_resize_y | imgui.ChildFlags_.always_use_window_padding)
+
+	def _pane_end(self) -> None:
+		imgui.end_child()
+		size = imgui.get_item_rect_size()                 # a tab larger than the others: the pane grows for all
+		self.settings_pane = imgui.ImVec2(max(self.settings_pane.x, size.x), max(self.settings_pane.y, size.y))
+
 	def _gateway_tab(self) -> None:
 		"""The settings of the gateway running (paper or live): data feed, port, local only, update intervals."""
 		f = self.form
@@ -465,7 +471,9 @@ class GatewayWindow:
 		if imgui.is_item_hovered():
 			imgui.set_tooltip(f"{settings_mod.path()}\nCredentials: {self.launcher.config.path} (only read)")
 		imgui.spacing()
-		label_w = imgui.calc_text_size("Socket Port").x + 2 * imgui.get_style().item_spacing.x
+		# the fields' column: after the widest label, from where the pane's content starts (its padding)
+		label_w = (imgui.get_cursor_pos_x() + max(imgui.calc_text_size(t).x for t in ("Data feed", "Socket Port",
+			"Quotes", "Forming bar")) + 2 * imgui.get_style().item_spacing.x)
 		field_w = imgui.get_font_size() * 16
 
 		def label(text: str) -> None:
@@ -504,18 +512,18 @@ class GatewayWindow:
 
 	def _about_tab(self) -> None:
 		"""Settings -> About: version, copyright and the libraries with their authors and licenses; as large as the
-		Gateway tab."""
-		size = self.gateway_tab_size
-		width = max(imgui.get_font_size() * 24, size.x)
-		start = imgui.get_cursor_pos_y()
+		Gateway tab (the pane's size)."""
+		style = imgui.get_style()
+		width = max(imgui.get_font_size() * 24, self.settings_pane.x - 2 * style.window_padding.x)
 		imgui.push_text_wrap_pos(imgui.get_cursor_pos_x() + width)
 		imgui.text(about.title())
 		imgui.text_colored(GREY, f"{about.COPYRIGHT}. {about.LICENSE}")
 		imgui.text_colored(GREY, about.DISCLAIMER)
 		imgui.pop_text_wrap_pos()
 		imgui.spacing()
-		used = imgui.get_cursor_pos_y() - start
-		rows = max(imgui.get_text_line_height_with_spacing() * 6, size.y - used - imgui.get_style().item_spacing.y)
+		# the list fills the pane down to its bottom padding (cursor: from the pane's top, its padding included)
+		rows = max(imgui.get_text_line_height_with_spacing() * 6,
+			self.settings_pane.y - imgui.get_cursor_pos_y() - style.window_padding.y)
 		imgui.begin_child("libraries", imgui.ImVec2(width, rows), imgui.ChildFlags_.borders)
 		imgui.push_text_wrap_pos(0.0)
 		for lib in about.LIBRARIES:
