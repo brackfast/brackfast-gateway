@@ -16,6 +16,10 @@ What each version brings, for users. The build writes the section of the version
   newer version shows as a line under the account bar, with the download page a click away.
 - **CTRL-C in the terminal:** stops the gateway as Quit does, without an error message (a second CTRL-C
   closes the window at once).
+- **About in Settings:** the version, the update check and the licenses are a tab of Settings now. The
+  licenses of the software the gateway ships with are in THIRD-PARTY-LICENSES.txt (Open the licenses);
+  before, those of Dear ImGui, GLFW and two fonts were missing.
+- **A bolder icon:** easier to see in the title bar and the taskbar.
 
 ## 0.1.0
 
