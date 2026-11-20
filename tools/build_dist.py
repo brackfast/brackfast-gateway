@@ -21,7 +21,8 @@ from its release archive (checked against its SHA-256), the wheels through uv fo
 (``uv pip install --python-platform``). config.cfg is written next to the launcher at the first start.
 
 A release (a plain X.Y.Z version from the tag) also gets dist/alpaca-gateway-<version>-changes.md: that version's
-section of CHANGELOG.md, for the website. The build stops if CHANGELOG.md has none.
+section of CHANGELOG.md, for the website. The build stops if CHANGELOG.md has none. A development build
+(0.1.1.dev8+g...) gets one from CHANGELOG.md's "## Next" (the changes since the last release), if there is one.
 """
 from __future__ import annotations
 
@@ -112,6 +113,17 @@ def changes(v: str) -> str:
 	if m is None or not m.group(1).strip():
 		sys.exit(f"CHANGELOG.md has no section '## {v}': describe this version's changes there first")
 	return f"# Alpaca Gateway {v}\n\n{m.group(1).strip()}\n"
+
+
+def dev_changes(v: str) -> str | None:
+	"""A development build's notes: CHANGELOG.md's "## Next", the changes since the last release (None: no such section)."""
+	text = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
+	m = re.search(r"^## Next[^\n]*\n(.*?)(?=^## |\Z)", text, re.M | re.S)
+	if m is None or not m.group(1).strip():
+		return None
+	last = re.search(r"^## (\d+\.\d+\.\d+\S*)", text, re.M)
+	since = f" since {last.group(1)}" if last else ""
+	return f"# Alpaca Gateway {v}\n\nA development build: the changes{since}.\n\n{m.group(1).strip()}\n"
 
 
 def download(url: str, sha256: str) -> Path:
@@ -260,15 +272,16 @@ def main() -> None:
 	a = p.parse_args()
 	systems = ["windows"] if a.dir else [s for s in TARGETS if getattr(a, s)] or list(TARGETS)
 	v = version()
-	notes = changes(v) if is_release(v) else None       # before building: a release without its changes stops here
+	# before building: a release without its changes stops here; a development build takes "## Next"
+	notes = changes(v) if is_release(v) else dev_changes(v)
 	for system in systems:
 		build(system, a.dir)
 	if notes is None:
-		print(f"no changes file: {v} is not a release")
+		print(f"no changes file: {v} is not a release, and CHANGELOG.md has no '## Next'")
 	elif not a.dir:
 		out = ROOT / "dist" / f"{NAME}-{v}-changes.md"
 		out.write_text(notes, encoding="utf-8", newline="\n")
-		print(f"  -> {out.relative_to(ROOT)} (CHANGELOG.md's {v})")
+		print(f"  -> {out.relative_to(ROOT)} (CHANGELOG.md's {v if is_release(v) else 'Next'})")
 
 
 if __name__ == "__main__":

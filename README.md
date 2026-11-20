@@ -132,7 +132,7 @@ after the tag gives `X.Y.(Z+1).devN+g<commit>` (and a warning from the build), u
 
 **Changes per version:** [CHANGELOG.md](CHANGELOG.md) has a section `## X.Y.Z` for every release, written for
 users. Add it before tagging. A release build writes it to `dist/alpaca-gateway-<version>-changes.md` next to
-the archives, for the website, and stops if the section is missing. A non-release build writes none.
+the archives, for the website, and stops if the section is missing. A development build (`0.1.1.dev8+g...`) writes `## Next`, the changes since the last release, if there is such a section.
 
 On Linux the Python needs glibc 2.28 or newer. The Linux build was checked headless in WSL (Ubuntu 22.04).
 `config.cfg` and `alpacagw.log` live in the program's folder.
