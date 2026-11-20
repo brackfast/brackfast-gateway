@@ -12,6 +12,8 @@ What each version brings, for users. The build writes the section of the version
   starts a forming bar for it again.
 - **Another account file:** `--config FILE` reads the account from FILE instead of config.cfg (for
   example one file per account).
+- **Check for updates:** at start (Settings, Gateway) and with Check for updates in Settings, About; a
+  newer version shows as a line under the account bar, with the download page a click away.
 - **CTRL-C in the terminal:** stops the gateway as Quit does, without an error message (a second CTRL-C
   closes the window at once).
 

@@ -96,6 +96,7 @@ restart the gateway: the new settings apply from the next start.
   reaches the port can then trade your account.
 - Quotes, Forming bar: how often, at most, the gateway sends a symbol's newest quote and its
   forming one-minute bar to your trading programs, in milliseconds (default 100 and 250).
+- Check for updates at start: on by default (see Updates).
 
 The settings are stored in:
 
@@ -103,6 +104,15 @@ The settings are stored in:
     Linux:    ~/.config/alpacagw/settings.json
 
 They hold no API keys.
+
+
+UPDATES
+-------
+
+At start, the gateway asks the website which version is the newest; only that request is sent,
+nothing about you or your account. When there is a newer one, a green line under the account bar
+says so, with a button for the download page (x hides it). Settings, About: Check for updates.
+Without a window (--headless) the log says it.
 
 
 OPTIONS

@@ -20,7 +20,7 @@ import imgui_bundle
 from imgui_bundle import hello_imgui, imgui, immapp
 
 from ..client.config import FEEDS, Credentials
-from . import about, settings as settings_mod
+from . import about, settings as settings_mod, updates as updates_mod
 from ..protocol import Status
 from .core import Snapshot
 
@@ -28,6 +28,7 @@ NY = ZoneInfo("America/New_York")
 RED = imgui.ImVec4(0.95, 0.30, 0.30, 1.0)
 YELLOW = imgui.ImVec4(0.95, 0.80, 0.30, 1.0)
 GREY = imgui.ImVec4(0.6, 0.6, 0.6, 1.0)
+NEWER = imgui.ImVec4(0.22, 0.84, 0.36, 1.0)            # a newer version (text; as Brackfast's green LED)
 LEVEL_COLORS = {"warning": YELLOW, "error": RED}
 FONT_SIZE = 14.0                                         # pixels at 100 % display scaling
 FONT_FILE = "fonts/Roboto/Roboto-Regular.ttf"            # in imgui_bundle's assets (as Brackfast)
@@ -244,8 +245,10 @@ def set_window_icon(viewport: imgui.ImGuiViewport) -> None:
 
 
 class GatewayWindow:
-	def __init__(self, launcher: Any) -> None:
+	def __init__(self, launcher: Any, update_check: Any = None) -> None:
 		self.launcher = launcher                                 # app.Launcher: starts / holds the gateway
+		self.updates = update_check or updates_mod.UpdateCheck()    # Settings -> About, and the note under the account
+		self.update_closed = ""                                  # the version whose note was closed with its x
 		self.login = {"key_id": "", "secret_key": ""}           # the login form (memory only, never stored)
 		self.login_error = ""
 		self.login_env = launcher.config.environment            # the Paper / Live switch
@@ -427,6 +430,7 @@ class GatewayWindow:
 			"local_only": s.local_only,
 			"quote_interval_ms": s.quote_interval_ms,
 			"bar_interval_ms": s.bar_interval_ms,
+			"check_updates": s.check_updates,
 		}
 		self.form_message = ""
 		self.settings_requested = True
@@ -458,7 +462,8 @@ class GatewayWindow:
 		if imgui.button("Save", imgui.ImVec2(90, 0)):
 			f = self.form
 			s = settings_mod.GatewaySettings(stock_feed=f["stock_feed"], port=f["port"], local_only=f["local_only"],
-				quote_interval_ms=f["quote_interval_ms"], bar_interval_ms=f["bar_interval_ms"])
+				quote_interval_ms=f["quote_interval_ms"], bar_interval_ms=f["bar_interval_ms"],
+				check_updates=f.get("check_updates", True))
 			try:
 				settings_mod.save(self._environment(), s)
 				self.form_message = "Saved. Restart the gateway to use the new settings."
@@ -526,6 +531,11 @@ class GatewayWindow:
 		if changed:
 			f["bar_interval_ms"] = max(10, min(value, 60_000))
 		imgui.text_colored(GREY, "at most every ... ms (quotes: the newest; the bar: when it changed)")
+		imgui.spacing()
+		_, f["check_updates"] = imgui.checkbox("Check for updates at start", f.get("check_updates", True))
+		if imgui.is_item_hovered():
+			imgui.set_tooltip("Asks the website which version is the newest (nothing about you or your account\n"
+				"is sent). A newer one: a line under the account bar.")
 		if self.form_message:
 			imgui.spacing()
 			imgui.text_colored(YELLOW, self.form_message)
@@ -540,6 +550,8 @@ class GatewayWindow:
 		imgui.text_colored(GREY, f"{about.COPYRIGHT}. {about.LICENSE}")
 		imgui.text_colored(GREY, about.DISCLAIMER)
 		imgui.pop_text_wrap_pos()
+		imgui.spacing()
+		self._updates_section(width)
 		imgui.spacing()
 		# the list fills the pane down to its bottom padding (cursor: from the pane's top, its padding included)
 		rows = max(imgui.get_text_line_height_with_spacing() * 6,
@@ -709,10 +721,49 @@ class GatewayWindow:
 		imgui.get_window_draw_list().add_text(imgui.ImVec2(pos.x + (width - size.x) / 2, pos.y + (height - size.y) / 2),
 			imgui.get_color_u32(imgui.ImVec4(1, 1, 1, 1)), text)
 		imgui.dummy(imgui.ImVec2(width, height))
+		self._update_note()
 		if snap.status.text:
 			imgui.text_colored(RED, snap.status.text)
 		imgui.spacing()
 		self._connection_status(snap)
+
+	def _update_note(self) -> None:
+		"""A newer version on the website: a line under the account bar (no popup), the download page a click away;
+		its x hides it for this run."""
+		u = self.updates
+		if u.state != updates_mod.AVAILABLE or u.latest == self.update_closed:
+			return
+		imgui.spacing()
+		imgui.align_text_to_frame_padding()
+		imgui.text_colored(NEWER, f"Alpaca Gateway {u.latest} is available.")
+		imgui.same_line()
+		if imgui.small_button("Download page"):
+			import webbrowser
+			webbrowser.open(updates_mod.DOWNLOAD_PAGE)
+		imgui.same_line()
+		if imgui.small_button("x##update"):
+			self.update_closed = u.latest
+		if imgui.is_item_hovered():
+			imgui.set_tooltip("Hide until the next start")
+
+	def _updates_section(self, width: float) -> None:
+		"""Settings -> About: the update check's result, Check now and the download page (``width``: the pane's)."""
+		u = self.updates
+		imgui.begin_disabled(u.state == updates_mod.CHECKING)
+		if imgui.button("Check for updates"):
+			u.start()
+		imgui.end_disabled()
+		imgui.same_line()
+		if u.state == updates_mod.AVAILABLE:
+			if imgui.button("Download page"):
+				import webbrowser
+				webbrowser.open(updates_mod.DOWNLOAD_PAGE)
+			imgui.same_line()
+		imgui.align_text_to_frame_padding()
+		color = {updates_mod.AVAILABLE: NEWER, updates_mod.FAILED: YELLOW}.get(u.state, GREY)
+		imgui.push_text_wrap_pos(imgui.get_style().window_padding.x + width)     # the pane's right edge
+		imgui.text_colored(color, u.text or "Not checked yet in this run (Settings, Gateway: at start).")
+		imgui.pop_text_wrap_pos()
 
 	def _connection_status(self, snap: Snapshot) -> None:
 		"""Connection Status: one row per connection, green when up, red when down."""

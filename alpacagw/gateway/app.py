@@ -25,7 +25,7 @@ import msgspec
 from .. import __version__
 from ..client import Alpaca, AlpacaConfig, Credentials, load_config
 from ..protocol import PORT
-from . import redact, settings as settings_mod
+from . import redact, settings as settings_mod, updates as updates_mod
 from .core import GatewayCore
 
 CONFIG_FILE = "config.cfg"
@@ -179,6 +179,9 @@ def main(argv: list[str] | None = None) -> int:
 	setup_logging(args.log or "alpacagw.log")
 	logging.getLogger("alpacagw").info("account file %s%s", cfg, "" if config.credentials else " (no credentials)")
 
+	update_check = updates_mod.UpdateCheck()
+	if settings_mod.load(config.environment).check_updates:
+		update_check.start()                     # in the background; the window shows a newer one, headless logs it
 	if args.headless:
 		if config.credentials is None:
 			print(f"alpacagw: no credentials in {cfg}: fill in key_id and secret_key (headless, nobody to ask)",
@@ -194,7 +197,7 @@ def main(argv: list[str] | None = None) -> int:
 	launcher = Launcher(config, host=args.host, port=args.port)
 	if config.credentials is not None:
 		launcher.start()                         # else the window asks for them first
-	GatewayWindow(launcher).run()
+	GatewayWindow(launcher, update_check).run()
 	launcher.stop()
 	return 1 if launcher.error is not None and not launcher.was_ready else 0
 

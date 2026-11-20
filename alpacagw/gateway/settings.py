@@ -24,6 +24,7 @@ class GatewaySettings(msgspec.Struct, kw_only=True):
 	local_only: bool = True                  # listen on 127.0.0.1 only, else on all interfaces
 	quote_interval_ms: int = 100             # quotes to the clients at most this often per symbol (the newest)
 	bar_interval_ms: int = 250               # the forming 1m bar at most this often per symbol, when it changed
+	check_updates: bool = True               # at start: a newer version on the website? (updates.py)
 
 	def port_for(self, environment: str) -> int:
 		return self.port or PORT
