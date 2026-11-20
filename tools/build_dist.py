@@ -244,6 +244,7 @@ def build(system: str, as_dir: bool) -> Path:
 	# site-packages); the About tab opens this file
 	licenses = subprocess.run(["uv", "run", "--no-sync", "--project", str(ROOT), "python", "-m", "alpacagw.gateway.about"],
 		cwd=ROOT, capture_output=True, check=True).stdout.decode("utf-8")
+	licenses = licenses.replace("\r\n", "\n")          # stdout on Windows has \r\n already: once, not \r\r\n
 	writer.file("THIRD-PARTY-LICENSES.txt", (licenses.replace("\n", "\r\n") if system == "windows" else licenses).encode())
 	writer.close()
 	size = sum(p.stat().st_size for p in out.rglob("*")) if out.is_dir() else out.stat().st_size
