@@ -1,0 +1,29 @@
+# The GitHub repository is a read-only mirror: pull requests (and issues, should they be switched on) are closed
+# with a pointer to where feedback goes. Nothing is checked out or run from the pull request.
+name: Read-only mirror
+
+on:
+  pull_request_target:
+    types: [opened, reopened]
+  issues:
+    types: [opened, reopened]
+
+permissions:
+  pull-requests: write
+  issues: write
+
+jobs:
+  close:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Close with a pointer
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          NUMBER: ${{ github.event.pull_request.number || github.event.issue.number }}
+          KIND: ${{ github.event_name == 'issues' && 'issue' || 'pr' }}
+          MESSAGE: >-
+            Thank you! This repository is a read-only mirror, so pull requests and issues are not handled here.
+            Please send bugs, questions and patches through the feedback form at https://brackfast.io/#feedback
+            (a patch can go in the message as a link or a diff). Every message is read and answered.
+        run: gh "$KIND" close "$NUMBER" --comment "$MESSAGE"
