@@ -12,6 +12,8 @@ What each version brings, for users. The build writes the section of the version
   starts a forming bar for it again.
 - **Another account file:** `--config FILE` reads the account from FILE instead of config.cfg (for
   example one file per account).
+- **CTRL-C in the terminal:** stops the gateway as Quit does, without an error message (a second CTRL-C
+  closes the window at once).
 
 ## 0.1.0
 

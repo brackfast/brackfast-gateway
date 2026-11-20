@@ -9,6 +9,7 @@ from types import SimpleNamespace
 import logging
 import math
 import os
+import signal
 import sys
 import threading
 from datetime import datetime
@@ -254,6 +255,8 @@ class GatewayWindow:
 		self.form: dict[str, str] = {}                          # the settings dialog's fields
 		self.form_message = ""
 		self.settings_requested = False
+		self.interrupts = 0                         # CTRL-C presses in the console (_interrupt)
+		self.quitting = False
 		self.settings_pane = imgui.ImVec2(0, 0)       # the largest settings tab seen: its pane's size (all tabs take it)
 		self.title = "Alpaca Gateway"
 
@@ -280,7 +283,17 @@ class GatewayWindow:
 		params.callbacks.pre_new_frame = round_corners
 		params.callbacks.setup_imgui_style = self._style
 		params.callbacks.load_additional_fonts = self._fonts
-		immapp.run(params)
+		# CTRL-C in the console: a KeyboardInterrupt would end the window loop from inside a callback (a traceback, the
+		# gateway not stopped); instead the next frame quits as the window's Quit does, without asking. A second CTRL-C
+		# while it stops: the window closes at once (main still stops the gateway)
+		previous = signal.signal(signal.SIGINT, self._interrupt)
+		try:
+			immapp.run(params)
+		finally:
+			signal.signal(signal.SIGINT, previous)
+
+	def _interrupt(self, _signum: int, _frame: Any) -> None:
+		self.interrupts += 1
 
 	@staticmethod
 	def _fonts() -> None:
@@ -306,6 +319,13 @@ class GatewayWindow:
 
 	def gui(self) -> None:
 		launcher = self.launcher
+		if self.interrupts:
+			if self.interrupts > 1 or launcher.core is None:
+				hello_imgui.get_runner_params().app_shall_exit = True
+			elif not self.quitting:
+				self.quitting = True
+				log.info("CTRL-C: stopping the gateway")
+				self._quit()
 		if launcher.failed_start():
 			self.login_error = str(launcher.error)              # e.g. wrong keys: back to the login form
 			launcher.reset()
