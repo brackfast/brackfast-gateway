@@ -145,5 +145,5 @@ LICENSES
 --------
 
 The Alpaca Gateway is free software under the MIT license (LICENSE). python/ is a standalone
-Python with the libraries the gateway uses; their licenses are in python/ and next to each library
-in python's site-packages folder.
+Python with the libraries the gateway uses; their copyright notices and licenses are in
+THIRD-PARTY-LICENSES.txt (also Settings, About: Open the licenses).

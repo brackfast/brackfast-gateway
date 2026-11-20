@@ -42,3 +42,13 @@ def test_log_has_no_key_secret_or_account(tmp_path):
 	finally:
 		log.removeHandler(handler)
 	assert lines == ["auth <key id> <secret> for PA…345"]
+
+
+def test_third_party_licenses_have_the_texts():
+	"""THIRD-PARTY-LICENSES.txt (the build writes it, the About tab opens it): Dear ImGui and GLFW have no files of
+	their own in site-packages, so their texts must be in it; the packages' come from their metadata."""
+	from alpacagw.gateway import about
+	text = about.third_party_text()
+	for needed in ("Omar Cornut", "Camilla Löwy", "Permission is hereby granted", "aiohttp", "msgspec", "Pascal Thomet"):
+		assert needed in text, needed
+	assert "NAME" not in text and "The Alpaca Gateway authors" in text

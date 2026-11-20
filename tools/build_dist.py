@@ -13,6 +13,8 @@ one folder alpaca-gateway/:
 	                                       dependencies in its site-packages (versions from uv.lock)
 	LICENSE, README.txt                    README.txt: USER-README.md (for users; README.md and
 	                                       PROTOCOL.md are for developers and stay out)
+	THIRD-PARTY-LICENSES.txt               the notices and license texts of what it ships with
+	                                       (alpacagw/gateway/about.py: python -m alpacagw.gateway.about)
 
 No compiled program: the gateway stays readable Python. Both archives are built on any system: the Python comes
 from its release archive (checked against its SHA-256), the wheels through uv for the target platform
@@ -238,6 +240,11 @@ def build(system: str, as_dir: bool) -> Path:
 		writer.file("alpaca-gateway", LINUX_LAUNCHER.encode(), 0o755)
 	text = readme(v)
 	writer.file("README.txt", (text.replace("\n", "\r\n") if system == "windows" else text).encode())
+	# the third-party notices and license texts (Dear ImGui, GLFW and the fonts have no files of their own in
+	# site-packages); the About tab opens this file
+	licenses = subprocess.run(["uv", "run", "--no-sync", "--project", str(ROOT), "python", "-m", "alpacagw.gateway.about"],
+		cwd=ROOT, capture_output=True, check=True).stdout.decode("utf-8")
+	writer.file("THIRD-PARTY-LICENSES.txt", (licenses.replace("\n", "\r\n") if system == "windows" else licenses).encode())
 	writer.close()
 	size = sum(p.stat().st_size for p in out.rglob("*")) if out.is_dir() else out.stat().st_size
 	print(f"  -> {out.relative_to(ROOT)} ({size / 1e6:.0f} MB)")

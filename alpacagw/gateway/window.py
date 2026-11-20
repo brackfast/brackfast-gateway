@@ -541,34 +541,31 @@ class GatewayWindow:
 			imgui.text_colored(YELLOW, self.form_message)
 
 	def _about_tab(self) -> None:
-		"""Settings -> About: version, copyright and the libraries with their authors and licenses; as large as the
-		Gateway tab (the pane's size)."""
+		"""Settings -> About: version, license, updates, and where the third-party licenses are (Open the licenses:
+		THIRD-PARTY-LICENSES.txt in the system's viewer)."""
 		style = imgui.get_style()
 		width = max(imgui.get_font_size() * 24, self.settings_pane.x - 2 * style.window_padding.x)
 		imgui.push_text_wrap_pos(imgui.get_cursor_pos_x() + width)
 		imgui.text(about.title())
-		imgui.text_colored(GREY, f"{about.COPYRIGHT}. {about.LICENSE}")
+		imgui.text_colored(GREY, about.LICENSE)
 		imgui.text_colored(GREY, about.DISCLAIMER)
 		imgui.pop_text_wrap_pos()
 		imgui.spacing()
 		self._updates_section(width)
 		imgui.spacing()
-		# the list fills the pane down to its bottom padding (cursor: from the pane's top, its padding included)
-		rows = max(imgui.get_text_line_height_with_spacing() * 6,
-			self.settings_pane.y - imgui.get_cursor_pos_y() - style.window_padding.y)
-		imgui.begin_child("libraries", imgui.ImVec2(width, rows), imgui.ChildFlags_.borders)
-		imgui.push_text_wrap_pos(0.0)
-		for lib in about.LIBRARIES:
-			version = f" {lib.version}" if lib.version else ""
-			imgui.text(f"This software uses the {lib.name}{version} library from {lib.author}.")
-			imgui.text_colored(GREY, f"{lib.license}  -  {lib.url}")
-			if imgui.is_item_hovered():
-				imgui.set_tooltip("Click to copy the address")
-			if imgui.is_item_clicked():
-				imgui.set_clipboard_text(lib.url)
-			imgui.spacing()
+		imgui.separator()
+		imgui.spacing()
+		# the third-party licenses ship as THIRD-PARTY-LICENSES.txt next to the launcher; the tab only points there
+		imgui.push_text_wrap_pos(imgui.get_cursor_pos_x() + width)
+		imgui.text_colored(GREY, "The gateway uses third-party software (Python, Dear ImGui, aiohttp and others). "
+			f"Their licenses: {about.LICENSES_FILE} next to the launcher.")
 		imgui.pop_text_wrap_pos()
-		imgui.end_child()
+		if imgui.button("Open the licenses"):
+			from .app import program_folder
+			try:
+				about.open_licenses(program_folder())
+			except OSError as exc:
+				log.warning("cannot open the licenses: %s", exc)
 
 	def _quit(self) -> None:
 		if self.launcher.core is not None:
