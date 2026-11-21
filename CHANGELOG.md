@@ -4,6 +4,12 @@ What each version brings, for users. The build writes the section of the version
 `dist/alpaca-gateway-<version>-changes.md`, next to the archives (for the website). Add a section
 `## X.Y.Z` before tagging `vX.Y.Z`; the newest comes first.
 
+## Next
+
+- **Settings across versions:** a setting the gateway can not read now costs only that setting (before,
+  every setting of paper and live was reset); settings of a newer version survive going back to an older
+  one.
+
 ## 0.2.0
 
 - **One port for paper and live:** trading programs connect to ws://127.0.0.1:4102/ for either account

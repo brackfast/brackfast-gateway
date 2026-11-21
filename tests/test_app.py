@@ -52,3 +52,25 @@ def test_third_party_licenses_have_the_texts():
 	for needed in ("Omar Cornut", "Camilla Löwy", "Permission is hereby granted", "aiohttp", "msgspec", "Pascal Thomet"):
 		assert needed in text, needed
 	assert "NAME" not in text and "The Alpaca Gateway authors" in text
+
+
+def test_settings_across_versions(tmp_path):
+	"""A newer gateway's settings file read by this one: what it does not know is kept, a value that does not fit
+	costs only that setting, saving one environment keeps the other (before: one bad value reset both)."""
+	import msgspec
+	from alpacagw.gateway import settings
+	file = tmp_path / "settings.json"
+	file.write_bytes(msgspec.json.encode({
+		"paper": {"port": 4200, "quote_interval_ms": "fast", "future_option": [1, 2], "local_only": False},
+		"live": {"port": 4300, "stock_feed": "sip"}, "future_section": {"x": 1}}))
+	paper = settings.load("paper", file)
+	assert (paper.port, paper.local_only, paper.quote_interval_ms) == (4200, False, 100)     # the bad one: default
+	paper.bar_interval_ms = 500
+	settings.save("paper", paper, file)
+	saved = msgspec.json.decode(file.read_bytes())
+	assert saved["paper"]["future_option"] == [1, 2] and saved["paper"]["bar_interval_ms"] == 500
+	assert saved["live"] == {"port": 4300, "stock_feed": "sip"} and saved["future_section"] == {"x": 1}
+	assert settings.load("live", file).stock_feed == "sip"
+	file.write_text("{ broken", encoding="utf-8")
+	assert settings.load("paper", file) == settings.GatewaySettings()
+	assert (tmp_path / "settings.unreadable.json").read_text(encoding="utf-8") == "{ broken"
