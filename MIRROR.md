@@ -43,4 +43,5 @@ messages or identities.
   Pull requests cannot be switched off; the workflow closes them.
 - Description: "Local gateway between trading apps and Alpaca: holds your API keys, speaks a small msgpack-over-WebSocket protocol."
   Website https://brackfast.io; topics alpaca, trading, websocket, msgpack, gateway, python.
-- Not yet checked: a pull request from another account closed by the workflow.
+- The workflow checked 2026-11-21 in a private throwaway repository: a pull request was closed within seconds with
+  the message (not tested on the mirror itself, where a test pull request would stay visible).
