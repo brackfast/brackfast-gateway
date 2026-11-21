@@ -1,5 +1,9 @@
 # Alpaca Gateway
 
+> **Read-only mirror.** This GitHub repository mirrors the Alpaca Gateway's own repository. Pull requests and
+> issues are not handled here: send bugs, questions and patches through the
+> [feedback form](https://brackfast.io/#feedback).
+
 A local gateway between trading applications and [Alpaca](https://alpaca.markets): the one
 process that holds your API keys and talks to Alpaca's Trading and Market Data APIs. Apps
 connect to the gateway instead of to Alpaca.
