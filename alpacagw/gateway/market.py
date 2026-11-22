@@ -92,6 +92,7 @@ class MarketRelay:
 		self._forming: dict[str, _Forming] = {}
 		self._complete: dict[str, datetime] = {}      # per symbol: the newest minute Alpaca sent its bar for
 		self._quotes: dict[str, AlpacaQuote] = {}     # newest quote not sent yet
+		self._names: dict[str, str] = {}              # symbol -> the asset's name (Bars.name), asked once
 		self._started = False
 		self._flusher: asyncio.Task | None = None
 		stocks = alpaca.stocks
@@ -141,7 +142,18 @@ class MarketRelay:
 			return Bars(request_id=req.request_id, symbol=req.symbol, timeframe=req.timeframe, bars=[], text=str(exc))
 		rows = rows[:limit]
 		rows.reverse()
-		return Bars(request_id=req.request_id, symbol=req.symbol, timeframe=req.timeframe, bars=rows)
+		return Bars(request_id=req.request_id, symbol=req.symbol, timeframe=req.timeframe, bars=rows,
+			name=await self.name(req.symbol))
+
+	async def name(self, symbol: str) -> str:
+		"""The asset's name from Alpaca (once per symbol); "" when Alpaca has none or is not reached (asked again)."""
+		if symbol not in self._names:
+			try:
+				self._names[symbol] = (await self.alpaca.trading.get_asset(symbol)).name or ""
+			except Exception as exc:
+				self.log.info("asset %s: %s", symbol, exc)
+				return ""
+		return self._names[symbol]
 
 	# -- subscriptions (reference counted over all clients) --------------------------
 

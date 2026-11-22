@@ -227,6 +227,8 @@ class Bars(Message, tag="bars"):
 	timeframe: str
 	bars: list[BarData]
 	text: str = ""                      # error text when the request failed (bars empty)
+	name: str = ""                      # the instrument's name, e.g. "Apple Inc. Common Stock"; "" unknown (optional:
+	                                    # older gateways leave it out, older clients ignore it)
 
 
 class Bar(Message, tag="bar"):

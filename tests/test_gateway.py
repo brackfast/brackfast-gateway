@@ -107,6 +107,10 @@ async def test_bars_and_live_data(gateway):
 	bars = await conn.wait(lambda m: isinstance(m, Bars))
 	assert bars.request_id == 7 and len(bars.bars) == 3
 	assert bars.bars[0].ts < bars.bars[-1].ts and bars.bars[-1].close == 14.5     # the newest 3, oldest first
+	assert bars.name == "SPDR S&P 500 ETF Trust"                                 # the asset's name, for the chart
+	await conn.send(GetBars(request_id=8, symbol="spy", timeframe="5m", limit=3))
+	await conn.wait(lambda m: isinstance(m, Bars) and m.request_id == 8)
+	assert alpaca.trading.calls.count("asset SPY") == 1                         # asked once per symbol
 
 	await conn.send(Subscribe(symbols=["SPY"]))
 	await asyncio.sleep(0.05)

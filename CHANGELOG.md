@@ -4,6 +4,11 @@ What each version brings, for users. The build writes the section of the version
 `dist/alpaca-gateway-<version>-changes.md`, next to the archives (for the website). Add a section
 `## X.Y.Z` before tagging `vX.Y.Z`; the newest comes first.
 
+## Next
+
+- **The instrument's name:** the answer to a history request (`bars`) carries the asset's name from
+  Alpaca (`name`, optional in the protocol), for example for a chart's title.
+
 ## 0.3.0
 
 - **Settings across versions:** a setting the gateway can not read now costs only that setting (before,

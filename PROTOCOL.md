@@ -66,7 +66,7 @@ Timeframes: `1m` `2m` `5m` `15m` `30m` `1h` `1D` `1W` `1M`.
 | `order` | `id`, `symbol`, `side`, `type`, `qty`, `status`, `role`, `parent_id`, `leg_ids`, `limit_price`, `stop_price`, `tif`, `filled_qty`, `avg_fill_price`, `origin`, `reason`, `broker_id`, `created_at`, `updated_at` |
 | `fill` | `order_id`, `symbol`, `side`, `qty` (this fill), `price`, `ts`, `role` |
 | `reply` | `command`, `id`, `ok`, `text` |
-| `bars` | `request_id`, `symbol`, `timeframe`, `bars` (oldest first; each one an array `[ts, open, high, low, close, volume]`, `ts` = the bar's start), `text` (error) |
+| `bars` | `request_id`, `symbol`, `timeframe`, `bars` (oldest first; each one an array `[ts, open, high, low, close, volume]`, `ts` = the bar's start), `text` (error), `name` (the instrument's name, e.g. `Apple Inc. Common Stock`; optional, "" when unknown) |
 | `bar` | `symbol`, `ts`, `open`, `high`, `low`, `close`, `volume`, `complete` |
 | `quote` | `symbol`, `ts`, `bid`, `bid_size`, `ask`, `ask_size` |
 | `event` | `ts`, `level` (`info` / `warning` / `error`), `text`, `client`: log lines for the user |

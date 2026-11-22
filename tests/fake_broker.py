@@ -9,7 +9,10 @@ from decimal import Decimal
 import msgspec
 
 from alpacagw.client import Account, BarData, BarsPage, Order, Position, TradeUpdate
-from alpacagw.client.models.trading import FINAL_STATUSES
+from alpacagw.client.models.trading import FINAL_STATUSES, Asset
+
+_ASSET = msgspec.convert({"id": "a1", "class": "us_equity", "exchange": "ARCA", "symbol": "SPY",
+	"name": "SPDR S&P 500 ETF Trust", "status": "active", "tradable": True}, Asset)
 
 _ids = itertools.count(1)
 
@@ -38,6 +41,10 @@ class FakeTrading:
 		return msgspec.structs.replace(order, legs=legs or None)
 
 	# -- the TradingClient methods the gateway uses -----------------------------
+
+	async def get_asset(self, symbol: str):
+		self.calls.append(f"asset {symbol}")
+		return msgspec.structs.replace(_ASSET, symbol=symbol.upper())
 
 	async def get_account(self) -> Account:
 		return Account(id="acc", account_number="PA123", status="ACTIVE", equity=Decimal(1000), last_equity=Decimal(990),
