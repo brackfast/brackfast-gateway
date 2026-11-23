@@ -4,6 +4,13 @@ What each version brings, for users. The build writes the section of the version
 `dist/alpaca-gateway-<version>-changes.md`, next to the archives (for the website). Add a section
 `## X.Y.Z` before tagging `vX.Y.Z`; the newest comes first.
 
+## Next
+
+- **The first minute of a chart:** a chart opened in the middle of a minute now gets that minute's
+  bar with its real open, high and low a few seconds later (the minute's earlier trades, fetched
+  from Alpaca). Before, it showed only the trades since it was opened, often as a gap from the
+  previous bar, until Alpaca's complete bar replaced it after the minute.
+
 ## 0.3.1
 
 - **The instrument's name:** the answer to a history request (`bars`) carries the asset's name from

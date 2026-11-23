@@ -90,6 +90,10 @@ Timeframes: `1m` `2m` `5m` `15m` `30m` `1h` `1D` `1W` `1M`.
 - While a minute is forming, its bar is sent with `complete: false`, at most 4 times a second
   and only when it changes. It is built from trades: the prices from those the broker's bars count (not
   odd lots, average price or derivatively priced trades, ...), the volume from all.
+- Subscribed in the middle of a minute, the forming bar first holds the trades since the
+  subscription; a few seconds later it is sent again with the whole minute so far (the broker's
+  earlier trades of that minute), from then on as usual. When the minute ends before that, its
+  complete bar takes over as always.
 - Shortly after the minute ends, the broker's own bar for it arrives with `complete: true` and
   replaces the forming one. A correction of a complete bar comes as another `complete: true`
   bar with the same `ts`. Both can come after the next minute's first forming bar: a client

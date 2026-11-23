@@ -160,6 +160,61 @@ async def test_forming_bar_prices_only_from_priced_trades():
 	await relay.stop()
 
 
+async def test_forming_bar_filled_with_the_minutes_earlier_trades():
+	"""Subscribed mid-minute: the minute's trades before the subscription come from the trades API, so the forming
+	bar has the minute's open, high and low; a trade both fetched and streamed counts once."""
+	from datetime import datetime, timezone
+	from alpacagw.client import TradeData
+	from alpacagw.gateway.market import MarketRelay
+	alpaca = FakeAlpaca()
+	t0 = datetime(2026, 11, 23, 14, 53, 0, tzinfo=timezone.utc)
+	at = lambda s: t0.replace(second=s)
+	both = TradeData(timestamp=at(31), price=151.0, size=10, id=3, exchange="Q", conditions=["@"])
+	alpaca.data.trades["NVDA"] = [
+		TradeData(timestamp=at(2), price=150.0, size=100, id=1, exchange="Q", conditions=["@"]),
+		TradeData(timestamp=at(9), price=153.0, size=50, id=2, exchange="N", conditions=["@"]),
+		TradeData(timestamp=at(15), price=140.0, size=5, id=9, exchange="D", conditions=["@", "I"]),   # odd lot
+		both]
+	sent = []
+	relay = MarketRelay(alpaca, publish=lambda kind, symbol, msg: sent.append(msg), quote_interval=0.01,
+		bar_interval=0.01, fill_delay=0.05, clock=lambda: at(32))
+	await relay.start()
+	relay.add(["NVDA"], quotes=False, bars=True)
+	alpaca.stocks.emit(Trade(symbol="NVDA", timestamp=both.timestamp, price=151.0, size=10, id=3, exchange="Q",
+		conditions=["@"]))
+	await asyncio.sleep(0.03)
+	assert sent[-1].open == 151.0                           # before the fill: from the subscription on
+	await asyncio.sleep(0.08)
+	params = alpaca.data.requests[-1]
+	assert (params.symbols, params.start, params.end) == (["NVDA"], t0, at(32))
+	bar = sent[-1]
+	assert (bar.ts, bar.open, bar.high, bar.low, bar.close, bar.volume, bar.complete) == (t0, 150.0, 153.0, 150.0,
+		151.0, 165.0, False)
+	alpaca.stocks.emit(Trade(symbol="NVDA", timestamp=at(40), price=154.0, size=1, id=4, exchange="Q", conditions=["@"]))
+	await asyncio.sleep(0.03)
+	assert (sent[-1].open, sent[-1].high, sent[-1].volume) == (150.0, 154.0, 166.0)      # streaming goes on from there
+	await relay.stop()
+
+
+async def test_no_fill_once_the_minute_is_over():
+	"""Alpaca's bar for the minute came before the trades did: it stays, the fetched trades are not used."""
+	from datetime import datetime, timezone
+	from alpacagw.client import Bar as AlpacaBar, TradeData
+	from alpacagw.gateway.market import MarketRelay
+	alpaca = FakeAlpaca()
+	t0 = datetime(2026, 11, 23, 14, 53, 0, tzinfo=timezone.utc)
+	alpaca.data.trades["NVDA"] = [TradeData(timestamp=t0.replace(second=5), price=100.0, size=1, id=1, conditions=["@"])]
+	sent = []
+	relay = MarketRelay(alpaca, publish=lambda kind, symbol, msg: sent.append(msg), quote_interval=0.01,
+		bar_interval=0.01, fill_delay=0.05, clock=lambda: t0.replace(second=59))
+	await relay.start()
+	relay.add(["NVDA"], quotes=False, bars=True)
+	alpaca.stocks.emit(AlpacaBar(symbol="NVDA", timestamp=t0, open=1, high=2, low=1, close=2, volume=9))
+	await asyncio.sleep(0.12)
+	assert len(sent) == 1 and sent[0].complete and alpaca.data.requests
+	await relay.stop()
+
+
 def test_stop_from_another_thread_twice():
 	"""The window's way: the gateway on its own loop in a thread; Quit stops it, and closing the window
 	asks again once the loop is closed (that raised "Event loop is closed")."""

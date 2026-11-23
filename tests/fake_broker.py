@@ -190,6 +190,12 @@ class FakeStream:
 class FakeData:
 	def __init__(self) -> None:
 		self.requests = []
+		self.trades: dict[str, list] = {}           # get_trades' answer, {symbol: [TradeData]}
+
+	async def get_trades(self, params, *, max_pages=None):
+		self.requests.append(params)
+		return {s: [t for t in self.trades.get(s, ()) if params.start <= t.timestamp <= params.end]
+			for s in params.symbols}
 
 	async def iter_bars(self, params):
 		self.requests.append(params)

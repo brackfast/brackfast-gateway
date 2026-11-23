@@ -3,6 +3,9 @@
 Live bars: the forming minute is built from trades and sent at most every ``bar_interval``
 seconds while it changes; Alpaca's own minute bar (shortly after the minute) is sent as the
 complete bar and replaces it, its corrections (updated bars) are sent again as complete bars.
+A symbol's first bars subscription also fetches the running minute's earlier trades (``_fill``): before, a chart
+opened mid-minute showed that minute from its first trade after the subscription (a gap from the previous close,
+too short a range) until Alpaca's bar replaced it.
 Quotes are sent at most every ``quote_interval`` seconds per symbol (the newest one).
 """
 from __future__ import annotations
@@ -12,7 +15,7 @@ import logging
 from datetime import datetime, timedelta, timezone
 from typing import Any, Callable
 
-from ..client import Bar as AlpacaBar, BarsParams, Quote as AlpacaQuote, Trade, UpdatedBar
+from ..client import Bar as AlpacaBar, BarsParams, Quote as AlpacaQuote, Trade, TradeData, TradesParams, UpdatedBar
 from ..protocol import Bar, BarData, Bars, GetBars, Quote
 
 TIMEFRAMES = {
@@ -48,7 +51,12 @@ def lookback(timeframe: str, limit: int) -> timedelta:
 UNPRICED = frozenset("IWB47VZUCNRHPQM9")
 
 
-def priced(t: Trade) -> bool:
+FILL_DELAY = 1.0                 # s after the subscription before the minute's earlier trades are fetched: the stream
+                                 # runs by then, so the fetched ones and the streamed ones overlap instead of leaving a gap
+FILL_PAGES = 20                  # pages of 10,000 trades at most (NVDA: about 60,000 a minute in the morning, 3 s)
+
+
+def priced(t: TradeData) -> bool:
 	return not UNPRICED.intersection(t.conditions)
 
 
@@ -63,7 +71,7 @@ class _Forming:
 		self.volume = 0.0
 		self.dirty = False
 
-	def add(self, t: Trade) -> None:
+	def add(self, t: TradeData) -> None:
 		self.volume += t.size
 		if priced(t):
 			if self.open is None:
@@ -81,7 +89,8 @@ def _minute(ts: datetime) -> datetime:
 
 class MarketRelay:
 	def __init__(self, alpaca: Any, *, publish: Callable[[str, str, Any], None], log: logging.Logger | None = None,
-			bar_interval: float = 0.25, quote_interval: float = 0.1) -> None:
+			bar_interval: float = 0.25, quote_interval: float = 0.1, fill_delay: float = FILL_DELAY,
+			clock: Callable[[], datetime] = lambda: datetime.now(timezone.utc)) -> None:
 		self.alpaca = alpaca
 		self.publish = publish                    # (kind "bar" / "quote", symbol, message)
 		self.log = log or logging.getLogger("alpacagw.market")
@@ -91,6 +100,10 @@ class MarketRelay:
 		self._bar_refs: dict[str, int] = {}
 		self._forming: dict[str, _Forming] = {}
 		self._complete: dict[str, datetime] = {}      # per symbol: the newest minute Alpaca sent its bar for
+		self.fill_delay = fill_delay
+		self.clock = clock
+		self._filling: dict[str, list[Trade]] = {}    # symbol -> its streamed trades while the minute's earlier ones load
+		self._fills: set[asyncio.Task] = set()
 		self._quotes: dict[str, AlpacaQuote] = {}     # newest quote not sent yet
 		self._names: dict[str, str] = {}              # symbol -> the asset's name (Bars.name), asked once
 		self._started = False
@@ -116,6 +129,8 @@ class MarketRelay:
 	async def stop(self) -> None:
 		if self._flusher is not None:
 			self._flusher.cancel()
+		for task in list(self._fills):
+			task.cancel()
 		if self._started:
 			await self.alpaca.stocks.stop()
 
@@ -166,6 +181,11 @@ class MarketRelay:
 				stocks.subscribe("trades", symbol)
 				stocks.subscribe("bars", symbol)
 				stocks.subscribe("updatedBars", symbol)
+				streamed: list[Trade] = []
+				self._filling[symbol] = streamed
+				task = asyncio.get_running_loop().create_task(self._fill(symbol, streamed))
+				self._fills.add(task)
+				task.add_done_callback(self._fills.discard)
 		if not self._started and (self._quote_refs or self._bar_refs):
 			self._started = True
 			asyncio.get_running_loop().create_task(self._start_stream())
@@ -182,6 +202,7 @@ class MarketRelay:
 				stocks.unsubscribe("updatedBars", symbol)
 				self._forming.pop(symbol, None)
 				self._complete.pop(symbol, None)
+				self._filling.pop(symbol, None)
 
 	@staticmethod
 	def _ref(refs: dict[str, int], symbol: str, delta: int) -> int:
@@ -214,6 +235,45 @@ class MarketRelay:
 		elif minute < f.ts:
 			return                       # late trade of a finished minute: the official bar has it
 		f.add(t)
+		streamed = self._filling.get(t.symbol)
+		if streamed is not None:
+			streamed.append(t)
+
+	async def _fill(self, symbol: str, streamed: list[Trade]) -> None:
+		"""The running minute's trades before the subscription, from Alpaca's trades API: the forming bar is built
+		again from them and the trades streamed meanwhile (each once: the two overlap by ``fill_delay``), so a chart
+		opened mid-minute gets that minute's open, high and low. Nothing when the minute is over by then (Alpaca's
+		bar has it) or the symbol is no longer subscribed."""
+		try:
+			await asyncio.sleep(self.fill_delay)
+			now = self.clock()
+			minute = _minute(now)
+			try:
+				fetched = await self.alpaca.data.get_trades(TradesParams(symbols=[symbol], start=minute, end=now,
+					limit=10_000, sort="asc"), max_pages=FILL_PAGES)
+			except Exception as exc:
+				self.log.info("trades %s since %s: %s", symbol, minute.strftime("%H:%M"), exc)
+				return
+			if symbol not in self._bar_refs or self._filling.get(symbol) is not streamed:
+				return
+			done = self._complete.get(symbol)
+			f = self._forming.get(symbol)
+			if (done is not None and done >= minute) or (f is not None and f.ts != minute):
+				return                       # the minute is over: Alpaca's bar (or the next minute's trades) took over
+			seen: set[tuple] = set()
+			bar = _Forming(minute)
+			# sorted keeps the order of equal times: the fetched ones (in Alpaca's order) before the streamed ones
+			for t in sorted([*fetched.get(symbol, ()), *streamed], key=lambda t: t.timestamp):
+				key = (t.timestamp, t.id, t.exchange, t.price, t.size)
+				if _minute(t.timestamp) != minute or key in seen:
+					continue
+				seen.add(key)
+				bar.add(t)
+			if bar.volume:
+				self._forming[symbol] = bar
+		finally:
+			if self._filling.get(symbol) is streamed:
+				del self._filling[symbol]
 
 	def _on_quote(self, q: AlpacaQuote) -> None:
 		if q.symbol in self._quote_refs:
