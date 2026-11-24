@@ -4,6 +4,11 @@ What each version brings, for users. The build writes the section of the version
 `dist/alpaca-gateway-<version>-changes.md`, next to the archives (for the website). Add a section
 `## X.Y.Z` before tagging `vX.Y.Z`; the newest comes first.
 
+## Next
+
+- **Cleaner controls:** flat buttons, no shadow line under the outlines, 2 px corners, a little
+  taller fields and buttons (20 px), 4 px between them; the same look as Brackfast and Chartfast.
+
 ## 0.4.0
 
 - **The first minute of a chart:** a chart opened in the middle of a minute now gets that minute's

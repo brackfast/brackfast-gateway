@@ -20,7 +20,7 @@ import imgui_bundle
 from imgui_bundle import hello_imgui, imgui, immapp
 
 from ..client.config import FEEDS, Credentials
-from . import about, settings as settings_mod, updates as updates_mod
+from . import about, look, settings as settings_mod, updates as updates_mod
 from ..protocol import Status
 from .core import Snapshot
 
@@ -309,6 +309,7 @@ class GatewayWindow:
 		theme's blue (the only blue in the grey theme), a checked box as an unchecked one; as Brackfast."""
 		style = imgui.get_style()
 		style.font_size_base = FONT_SIZE
+		look.apply(style)                        # flat buttons, no border shadow, 2 px corners, 20 px controls (look.py)
 		style.set_color_(imgui.Col_.check_mark, imgui.ImVec4(0.88, 0.88, 0.88, 1.0))
 		style.set_color_(imgui.Col_.checkbox_selected_bg, style.color_(imgui.Col_.frame_bg))
 		# the selected row of lists, combos and tables (the stock feed's current entry) in Brackfast's blue (#3B6EF5),
@@ -369,13 +370,16 @@ class GatewayWindow:
 			imgui.text(f"starting ... ({core.status.state} {core.status.text})")
 		else:
 			self._header(snap)
-			imgui.separator()
+			# Clients / Log in a frame with their tabs, as Brackfast's Positions / Orders / Log (the separator above them
+			# before: the frame's edge now)
+			imgui.begin_child("tabs_frame", imgui.ImVec2(0, 0), imgui.ChildFlags_.borders)
 			if imgui.begin_tab_bar("tabs"):
 				for name, draw in (("Clients", self._clients), ("Log", self._log)):
 					if imgui.begin_tab_item(name)[0]:
 						draw(snap)
 						imgui.end_tab_item()
 				imgui.end_tab_bar()
+			imgui.end_child()
 		self._confirm_popup()
 		self._settings_popup()
 		imgui.end_child()
@@ -457,6 +461,10 @@ class GatewayWindow:
 		if not _begin_dialog("Settings", imgui.WindowFlags_.always_auto_resize):
 			return
 		about_tab = False
+		# one frame around the tabs and the open tab's content, as Brackfast's settings (the tabs sat above a framed
+		# pane before, as if in the air)
+		imgui.begin_child("settings_frame", imgui.ImVec2(0, 0), imgui.ChildFlags_.borders | imgui.ChildFlags_.auto_resize_x
+			| imgui.ChildFlags_.auto_resize_y | imgui.ChildFlags_.always_use_window_padding)
 		if imgui.begin_tab_bar("settings_tabs"):
 			if imgui.begin_tab_item("Gateway")[0]:
 				self._pane_begin()
@@ -470,10 +478,10 @@ class GatewayWindow:
 				self._pane_end()
 				imgui.end_tab_item()
 			imgui.end_tab_bar()
+		imgui.end_child()                        # settings_frame
 		imgui.spacing()
-		imgui.separator()
 		imgui.begin_disabled(about_tab)
-		if imgui.button("Save", imgui.ImVec2(90, 0)):
+		if look.button("Save", imgui.ImVec2(90, 0)):
 			f = self.form
 			s = settings_mod.GatewaySettings(stock_feed=f["stock_feed"], port=f["port"], local_only=f["local_only"],
 				quote_interval_ms=f["quote_interval_ms"], bar_interval_ms=f["bar_interval_ms"],
@@ -486,16 +494,15 @@ class GatewayWindow:
 				self.form_message = f"Not saved: {exc}"
 		imgui.end_disabled()
 		imgui.same_line()
-		if imgui.button("Close", imgui.ImVec2(90, 0)) or imgui.is_key_pressed(imgui.Key.escape) or _clicked_outside():
+		if look.button("Close", imgui.ImVec2(90, 0)) or imgui.is_key_pressed(imgui.Key.escape) or _clicked_outside():
 			imgui.close_current_popup()                 # as Close: unsaved changes stay unsaved
 		imgui.end_popup()
 
 	def _pane_begin(self) -> None:
-		"""The open tab in a framed pane, as large as the largest tab seen (as Brackfast's settings): the dialog
+		"""The open tab in a pane (framed with the tabs: settings_frame), as large as the largest tab seen (as Brackfast's settings): the dialog
 		keeps its size when the tab changes."""
 		imgui.set_next_window_size_constraints(self.settings_pane, imgui.ImVec2(1e6, 1e6))
-		imgui.begin_child("pane", imgui.ImVec2(0, 0), imgui.ChildFlags_.borders | imgui.ChildFlags_.auto_resize_x
-			| imgui.ChildFlags_.auto_resize_y | imgui.ChildFlags_.always_use_window_padding)
+		imgui.begin_child("pane", imgui.ImVec2(0, 0), imgui.ChildFlags_.auto_resize_x | imgui.ChildFlags_.auto_resize_y)
 
 	def _pane_end(self) -> None:
 		imgui.end_child()
@@ -574,7 +581,7 @@ class GatewayWindow:
 		imgui.text_colored(GREY, "The gateway uses third-party software (Python, Dear ImGui, aiohttp and others). "
 			f"Their licenses: {about.LICENSES_FILE} next to the launcher.")
 		imgui.pop_text_wrap_pos()
-		if imgui.button("Open the licenses"):
+		if look.button("Open the licenses"):
 			from .app import program_folder
 			try:
 				about.open_licenses(program_folder())
@@ -639,7 +646,7 @@ class GatewayWindow:
 		if live:
 			imgui.push_style_color(imgui.Col_.button, LIVE)
 			imgui.push_style_color(imgui.Col_.button_hovered, LIVE_HOVER)
-		clicked = imgui.button("Log in to LIVE account" if live else "Log in", imgui.ImVec2(width * 0.5, 0))
+		clicked = look.button("Log in to LIVE account" if live else "Log in", imgui.ImVec2(width * 0.5, 0))
 		if live:
 			imgui.pop_style_color(2)
 		imgui.end_disabled()
@@ -650,10 +657,10 @@ class GatewayWindow:
 			self.login = {"key_id": "", "secret_key": ""}
 			imgui.close_current_popup()
 		imgui.same_line()
-		if imgui.button("Settings", imgui.ImVec2(width * 0.22, 0)):
+		if look.button("Settings", imgui.ImVec2(width * 0.22, 0)):
 			self._open_settings()
 		imgui.same_line()
-		if imgui.button("Quit", imgui.ImVec2(-1, 0)):
+		if look.button("Quit", imgui.ImVec2(-1, 0)):
 			hello_imgui.get_runner_params().app_shall_exit = True
 		if self.login_error:
 			imgui.spacing()
@@ -707,13 +714,13 @@ class GatewayWindow:
 			imgui.text_colored(GREY, text)
 			buttons = 2 * 90 + imgui.get_style().item_spacing.x     # OK and Cancel, centered
 			imgui.set_cursor_pos_x(imgui.get_cursor_pos_x() + max(0.0, (imgui.get_content_region_avail().x - buttons) / 2))
-			if imgui.button("OK", (90, 0)):
+			if look.button("OK", (90, 0)):
 				if action is not None:
 					action()
 				self.confirm = None
 				imgui.close_current_popup()
 			imgui.same_line()
-			if imgui.button("Cancel", (90, 0)) or imgui.is_key_pressed(imgui.Key.escape) or _clicked_outside():
+			if look.button("Cancel", (90, 0)) or imgui.is_key_pressed(imgui.Key.escape) or _clicked_outside():
 				self.confirm = None
 				imgui.close_current_popup()
 			imgui.end_popup()
@@ -761,12 +768,12 @@ class GatewayWindow:
 		"""Settings -> About: the update check's result, Check now and the download page (``width``: the pane's)."""
 		u = self.updates
 		imgui.begin_disabled(u.state == updates_mod.CHECKING)
-		if imgui.button("Check for updates"):
+		if look.button("Check for updates"):
 			u.start()
 		imgui.end_disabled()
 		imgui.same_line()
 		if u.state == updates_mod.AVAILABLE:
-			if imgui.button("Download page"):
+			if look.button("Download page"):
 				import webbrowser
 				webbrowser.open(updates_mod.DOWNLOAD_PAGE)
 			imgui.same_line()
