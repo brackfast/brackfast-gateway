@@ -311,6 +311,12 @@ class GatewayWindow:
 		style.font_size_base = FONT_SIZE
 		style.set_color_(imgui.Col_.check_mark, imgui.ImVec4(0.88, 0.88, 0.88, 1.0))
 		style.set_color_(imgui.Col_.checkbox_selected_bg, style.color_(imgui.Col_.frame_bg))
+		# the selected row of lists, combos and tables (the stock feed's current entry) in Brackfast's blue (#3B6EF5),
+		# lighter while hovered; as Brackfast's and Chartfast's
+		blue = (0x3B / 255, 0x6E / 255, 0xF5 / 255)
+		style.set_color_(imgui.Col_.header, imgui.ImVec4(*blue, 0.60))
+		style.set_color_(imgui.Col_.header_hovered, imgui.ImVec4(*blue, 0.35))
+		style.set_color_(imgui.Col_.header_active, imgui.ImVec4(*blue, 0.75))
 
 	@staticmethod
 	def _pre_new_frame() -> None:
