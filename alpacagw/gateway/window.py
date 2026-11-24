@@ -283,7 +283,7 @@ class GatewayWindow:
 		params.fps_idling.fps_idle = 4.0
 		params.callbacks.show_gui = self.gui
 		params.callbacks.post_init = self._post_init
-		params.callbacks.pre_new_frame = round_corners
+		params.callbacks.pre_new_frame = self._pre_new_frame
 		params.callbacks.setup_imgui_style = self._style
 		params.callbacks.load_additional_fonts = self._fonts
 		# CTRL-C in the console: a KeyboardInterrupt would end the window loop from inside a callback (a traceback, the
@@ -311,6 +311,14 @@ class GatewayWindow:
 		style.font_size_base = FONT_SIZE
 		style.set_color_(imgui.Col_.check_mark, imgui.ImVec4(0.88, 0.88, 0.88, 1.0))
 		style.set_color_(imgui.Col_.checkbox_selected_bg, style.color_(imgui.Col_.frame_bg))
+
+	@staticmethod
+	def _pre_new_frame() -> None:
+		"""Before each frame: the OS windows' rounded corners, and no docking (a window dragged onto another
+		became tabs of one window that could not be separated again). Each frame, as hello_imgui switches it on
+		after post_init; off, imgui also undocks what was docked."""
+		imgui.get_io().config_flags &= ~imgui.ConfigFlags_.docking_enable
+		round_corners()
 
 	@staticmethod
 	def _post_init() -> None:
