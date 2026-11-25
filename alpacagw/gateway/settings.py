@@ -21,6 +21,18 @@ log = logging.getLogger("alpacagw.settings")
 SOURCES = {"alpaca": "Alpaca", "yahoo": "Yahoo Finance (unofficial)"}     # data_source -> its name in the window
 
 
+# settings only some data sources have (the others: every source); the window shows a setting only for its sources
+ONLY = {
+	"stock_feed": ("alpaca",),               # Alpaca's feeds
+	"simulate": ("alpaca",),                 # a choice only where there is a real account; else always simulated
+}
+
+
+def applies(setting: str, source: str) -> bool:
+	"""Whether a data source has this setting."""
+	return source in ONLY.get(setting, (source,))
+
+
 class GatewaySettings(msgspec.Struct, kw_only=True):
 	data_source: str = "alpaca"              # where the market data comes from: "alpaca" (with its account) | "yahoo"
 	                                         # (yahoo.py: no account, no keys; the account is simulated)

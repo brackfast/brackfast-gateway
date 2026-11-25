@@ -24,7 +24,7 @@ uv run alpacagw --yahoo         # Yahoo Finance's market data (unofficial), no a
 
 ### Simulated account
 
-With `--simulate` (or Settings, Simulated account) no order reaches Alpaca: orders stay in the gateway
+With `--simulate` (or Settings, Simulation tab, "Simulated account") no order reaches Alpaca: orders stay in the gateway
 and fill from Alpaca's quotes (`alpacagw/gateway/sim.py`). Clients see a paper account (`welcome`:
 broker `simulated`, account `SIMULATED`) and use the same commands.
 

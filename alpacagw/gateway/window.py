@@ -478,6 +478,11 @@ class GatewayWindow:
 				self._gateway_tab()
 				self._pane_end()
 				imgui.end_tab_item()
+			if imgui.begin_tab_item("Simulation")[0]:
+				self._pane_begin()
+				self._simulation_tab()
+				self._pane_end()
+				imgui.end_tab_item()
 			if imgui.begin_tab_item("About")[0]:
 				about_tab = True
 				self._pane_begin()
@@ -486,6 +491,8 @@ class GatewayWindow:
 				imgui.end_tab_item()
 			imgui.end_tab_bar()
 		imgui.end_child()                        # settings_frame
+		if self.form_message and not about_tab:    # under the tabs: Save is for all of them
+			imgui.text_colored(YELLOW, self.form_message)
 		imgui.spacing()
 		imgui.begin_disabled(about_tab)
 		if look.button("Save", imgui.ImVec2(90, 0)):
@@ -518,17 +525,11 @@ class GatewayWindow:
 		size = imgui.get_item_rect_size()                 # a tab larger than the others: the pane grows for all
 		self.settings_pane = imgui.ImVec2(max(self.settings_pane.x, size.x), max(self.settings_pane.y, size.y))
 
-	def _gateway_tab(self) -> None:
-		"""The settings of the gateway running (paper or live): data feed, port, local only, update intervals."""
-		f = self.form
-		env = self._environment()
-		imgui.text_colored(GREY, f"Settings of the {env} gateway")
-		if imgui.is_item_hovered():
-			imgui.set_tooltip(f"{settings_mod.path()}\nCredentials: {self.launcher.config.path} (only read)")
-		imgui.spacing()
-		# the fields' column: after the widest label, from where the pane's content starts (its padding)
-		label_w = (imgui.get_cursor_pos_x() + max(imgui.calc_text_size(t).x for t in ("Data feed", "Socket Port",
-			"Quotes", "Forming bar", "Starting cash", "At most", "Data source")) + 2 * imgui.get_style().item_spacing.x)
+	def _labels(self, *texts: str):
+		"""A tab's ``label(text)``: the text, then the next field in the fields' column (after the widest of
+		``texts``, from where the pane's content starts). Also returns the column's x and the fields' width."""
+		label_w = (imgui.get_cursor_pos_x() + max(imgui.calc_text_size(t).x for t in texts)
+			+ 2 * imgui.get_style().item_spacing.x)
 		field_w = imgui.get_font_size() * 16
 
 		def label(text: str) -> None:
@@ -536,7 +537,22 @@ class GatewayWindow:
 			imgui.text(text)
 			imgui.same_line(label_w)
 			imgui.set_next_item_width(field_w)
+		return label, label_w, field_w
 
+	def _settings_header(self) -> None:
+		env = self._environment()
+		imgui.text_colored(GREY, f"Settings of the {env} gateway")
+		if imgui.is_item_hovered():
+			imgui.set_tooltip(f"{settings_mod.path()}\nCredentials: {self.launcher.config.path} (only read)")
+		imgui.spacing()
+
+	def _gateway_tab(self) -> None:
+		"""The settings of the gateway running (paper or live): data source, its own settings (Alpaca: the data
+		feed), port, local only, update intervals, the bar cache. A setting the chosen source does not have is not
+		shown (``settings.applies``)."""
+		f = self.form
+		self._settings_header()
+		label, label_w, field_w = self._labels("Data source", "Data feed", "Socket Port", "Quotes", "Forming bar", "At most")
 		label("Data source")
 		sources = list(settings_mod.SOURCES)
 		changed, i = imgui.combo("##data_source", sources.index(f["data_source"]), list(settings_mod.SOURCES.values()))
@@ -548,14 +564,13 @@ class GatewayWindow:
 			imgui.text_colored(GREY, "No account and no keys: prices as on Yahoo's web site, the account is simulated. "
 				"Yahoo offers no API for this: it can stop working at any time.")
 			imgui.pop_text_wrap_pos()
-		imgui.begin_disabled(yahoo)                  # Alpaca's feeds
-		label("Data feed")
-		feeds = list(FEEDS)
-		changed, i = imgui.combo("##stock_feed", feeds.index(f["stock_feed"]) if f["stock_feed"] in feeds else 0, feeds)
-		if changed:
-			f["stock_feed"] = feeds[i]
-		imgui.text_colored(GREY, "iex: free  |  sip: all exchanges (paid)  |  delayed_sip: 15 min")
-		imgui.end_disabled()
+		if settings_mod.applies("stock_feed", f["data_source"]):
+			label("Data feed")
+			feeds = list(FEEDS)
+			changed, i = imgui.combo("##stock_feed", feeds.index(f["stock_feed"]) if f["stock_feed"] in feeds else 0, feeds)
+			if changed:
+				f["stock_feed"] = feeds[i]
+			imgui.text_colored(GREY, "iex: free  |  sip: all exchanges (paid)  |  delayed_sip: 15 min")
 		label("Socket Port")
 		changed, port = imgui.input_int("##port", f["port"], 0, 0)
 		if changed:
@@ -577,40 +592,44 @@ class GatewayWindow:
 		imgui.spacing()
 		self._bar_cache_settings(label)
 		imgui.spacing()
-		self._simulation_settings(label)
-		imgui.spacing()
 		_, f["check_updates"] = imgui.checkbox("Check for updates at start", f.get("check_updates", True))
 		if imgui.is_item_hovered():
 			imgui.set_tooltip("Asks the website which version is the newest (nothing about you or your account\n"
 				"is sent). A newer one: a line under the account bar.")
-		if self.form_message:
-			imgui.spacing()
-			imgui.text_colored(YELLOW, self.form_message)
 
 	def _bar_cache_settings(self, label) -> None:
 		"""Settings -> Gateway: historical bars kept on disk (barcache.py), a file per data source."""
 		f = self.form
 		_, f["bar_cache"] = imgui.checkbox("Keep historical bars on disk", f["bar_cache"])
 		if imgui.is_item_hovered():
-			imgui.set_tooltip("A chart's history is asked from Alpaca once; later only what is missing (the newest\n"
-				"bars always). One file per data feed, as their bars differ.")
+			imgui.set_tooltip("A chart's history is asked from the data source once; later only what is missing (the newest\n"
+				"bars always). One file per data source (each of Alpaca's feeds its own), as their bars differ.")
 		imgui.begin_disabled(not f["bar_cache"])
 		label("At most")
 		imgui.set_next_item_width(imgui.get_font_size() * 6)     # a short number: the dialog keeps its width
-		changed, value = imgui.input_int("MB per data feed##bar_cache_mb", f["bar_cache_mb"], 0, 0)
+		changed, value = imgui.input_int("MB per data source##bar_cache_mb", f["bar_cache_mb"], 0, 0)
 		if changed:
 			f["bar_cache_mb"] = max(10, min(value, 100_000))
 		imgui.end_disabled()
 		imgui.text_colored(GREY, "Sizes and Clear: the Bar Cache tab of the gateway's window")
 
-	def _simulation_settings(self, label) -> None:
-		"""Settings -> Gateway: the simulated account (sim.py) instead of the one at Alpaca."""
+	def _simulation_tab(self) -> None:
+		"""Settings -> Simulation: the simulated account (sim.py). With a data source that has an account (Alpaca)
+		it is a choice; with one that has none (Yahoo Finance) the account is always simulated, and the choice is
+		not shown."""
 		f = self.form
-		_, f["simulate"] = imgui.checkbox("Simulated account", f["simulate"])
-		if imgui.is_item_hovered():
-			imgui.set_tooltip("Orders stay in the gateway and fill from Alpaca's quotes (buys at the ask, sells at\n"
-				"the bid); no order reaches Alpaca. Clients see a paper account named SIMULATED.")
-		imgui.begin_disabled(not f["simulate"])
+		self._settings_header()
+		label, _label_w, _field_w = self._labels("Starting cash")
+		source = settings_mod.SOURCES[f["data_source"]].split(" (")[0]
+		choice = settings_mod.applies("simulate", f["data_source"])
+		if choice:
+			_, f["simulate"] = imgui.checkbox("Simulated account", f["simulate"])
+			if imgui.is_item_hovered():
+				imgui.set_tooltip(f"Orders stay in the gateway and fill from {source}'s quotes (buys at the ask, sells at\n"
+					f"the bid); no order reaches {source}. Clients see a paper account named SIMULATED.")
+		else:
+			imgui.text_colored(GREY, f"{source} has no account: the account is always simulated.")
+		imgui.begin_disabled(choice and not f["simulate"])
 		label("Starting cash")
 		changed, value = imgui.input_double("##sim_cash", f["sim_cash"], 0.0, 0.0, "%.0f")
 		if changed:
@@ -622,10 +641,10 @@ class GatewayWindow:
 		imgui.end_disabled()
 		core = self.launcher.core
 		if core is not None and core.simulated:
-			if core.alpaca is None:
-				imgui.text_colored(GREY, f"{core.market.provider} has no account: always simulated.")
-			elif self.launcher.simulate_arg and not settings_mod.load(self._environment()).simulate:
+			if (core.alpaca is not None and self.launcher.simulate_arg
+					and not settings_mod.load(self._environment()).simulate):
 				imgui.text_colored(GREY, "This start is simulated by --simulate, whatever is set here.")
+			imgui.spacing()
 			if look.button("Reset the simulated account"):
 				self._ask("Reset the simulated account?", "Its orders are canceled, its positions removed, the cash is "
 					"the starting cash again.", lambda: core.call(core.reset_simulation))

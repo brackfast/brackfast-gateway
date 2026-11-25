@@ -131,7 +131,7 @@ BAR CACHE
 
 The gateway keeps the historical bars it has fetched on disk, so a chart opened again gets its
 history at once and Alpaca is asked only for the newest bars. Settings, "Keep historical bars on
-disk" switches it off; "At most ... MB per data feed" limits its size (the bars used longest ago
+disk" switches it off; "At most ... MB per data source" limits its size (the bars used longest ago
 go first). Each data feed (iex, sip, delayed_sip) has a file of its own. The Bar Cache tab of the
 gateway's window (next to Clients and Log) lists them with their sizes; Clear empties one, Clear
 All every one. The files are in:
@@ -144,7 +144,7 @@ The files hold market data only and can be deleted at any time.
 SIMULATED ACCOUNT
 -----------------
 
-Settings, "Simulated account" (then restart the gateway): orders no longer go to Alpaca. They stay
+Settings, tab Simulation, "Simulated account" (then restart the gateway): orders no longer go to Alpaca. They stay
 in the gateway and fill from Alpaca's quotes; your Alpaca keys are used for the market data only.
 The account bar says SIMULATED ACCOUNT, and trading apps see a paper account named SIMULATED.
 
