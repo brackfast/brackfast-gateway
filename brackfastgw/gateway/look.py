@@ -1,4 +1,4 @@
-"""The controls' look, the same as Brackfast's and Chartfast's (Brackfast's brackfast/look.py: a change there belongs here too;
+"""The controls' look, the same as Brackfast Orders' and Brackfast Charts' (brackfast_orders/look.py: a change there belongs here too;
 the gateway does not depend on Brackfast). Applied after hello_imgui's theme (so_dark_accent_blue) in ``_style``.
 
 - Buttons flat: ``button()`` draws them without the frame border. The theme's 1 px border plus its border shadow (a
