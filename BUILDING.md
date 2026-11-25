@@ -1,4 +1,4 @@
-# Building and releasing the Alpaca Gateway
+# Building and releasing the Brackfast Gateway
 
 ```bash
 uv run --no-project tools/build_dist.py             # Windows and Linux; --windows / --linux for one

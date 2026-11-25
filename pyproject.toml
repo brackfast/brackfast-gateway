@@ -1,7 +1,7 @@
 [project]
 name = "alpacagw"
 dynamic = ["version"]            # from the git tag (vX.Y.Z), see [tool.hatch.version]
-description = "Alpaca Gateway: a local gateway between trading apps and the Alpaca Trading / Market Data API"
+description = "Brackfast Gateway: a local gateway between trading apps and brokers / market data sources (Alpaca, Yahoo Finance, a simulated account)"
 readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE"]

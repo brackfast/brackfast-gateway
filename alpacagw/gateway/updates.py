@@ -1,4 +1,4 @@
-"""Check for updates: is there a newer Alpaca Gateway on the website than the one running?
+"""Check for updates: is there a newer Brackfast Gateway on the website than the one running?
 
 The website's Download page lists its files in ``download/index.json`` (name, size, SHA-256). The check reads the
 same file and looks for the gateway's archives for this system: ``alpaca-gateway-<version>-<date>-<system>.<ext>``
@@ -105,10 +105,10 @@ class UpdateCheck:
 		latest = newest(names, PRODUCT, self.system, prereleases=is_prerelease(self.current))
 		current = version_key(self.current)
 		if latest and current is not None and version_key(latest) > current:
-			self._done(AVAILABLE, latest, f"Alpaca Gateway {latest} is available (this is {self.current}).")
-			log.info("update check: Alpaca Gateway %s is available (running %s): %s", latest, self.current, DOWNLOAD_PAGE)
+			self._done(AVAILABLE, latest, f"Brackfast Gateway {latest} is available (this is {self.current}).")
+			log.info("update check: Brackfast Gateway %s is available (running %s): %s", latest, self.current, DOWNLOAD_PAGE)
 		else:
-			self._done(NEWEST, "", f"Alpaca Gateway {self.current} is the newest version.")
+			self._done(NEWEST, "", f"Brackfast Gateway {self.current} is the newest version.")
 
 	def _done(self, state: str, latest: str, text: str) -> None:
 		with self._lock:

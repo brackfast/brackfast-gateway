@@ -1,4 +1,4 @@
-# Gateway protocol, version 3
+# Brackfast Gateway protocol, version 3
 
 Apps talk to the gateway over a websocket: `ws://127.0.0.1:4102/` by default, for a paper and a live
 account alike. The protocol does

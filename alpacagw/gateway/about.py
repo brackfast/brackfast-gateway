@@ -15,10 +15,10 @@ from pathlib import Path
 
 from .. import __version__
 
-PRODUCT = "Alpaca Gateway"
+PRODUCT = "Brackfast Gateway"
 COPYRIGHT = "Copyright (c) 2026 The Alpaca Gateway authors"            # as LICENSE (About shows the license only)
 LICENSE = "Released under the MIT License."
-DISCLAIMER = ("Not affiliated with or endorsed by Alpaca. Trading involves risk; the software comes without "
+DISCLAIMER = ("Not affiliated with or endorsed by Alpaca or Yahoo. Trading involves risk; the software comes without "
 	"warranty of any kind.")
 LICENSES_FILE = "THIRD-PARTY-LICENSES.txt"
 

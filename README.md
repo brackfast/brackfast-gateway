@@ -1,12 +1,18 @@
-# Alpaca Gateway
+# Brackfast Gateway
 
-> **Read-only mirror.** This GitHub repository mirrors the Alpaca Gateway's own repository. Pull requests and
+> **Read-only mirror.** This GitHub repository mirrors the Brackfast Gateway's own repository. Pull requests and
 > issues are not handled here: send bugs, questions and patches through the
 > [feedback form](https://brackfast.io/#feedback).
 
-A local gateway between trading applications and [Alpaca](https://alpaca.markets): the one
-process that holds your API keys and talks to Alpaca's Trading and Market Data APIs. Apps
-connect to the gateway instead of to Alpaca.
+A local gateway between trading applications and their brokers and market data, formerly the Alpaca Gateway.
+Apps connect to the gateway and speak one protocol ([PROTOCOL.md](PROTOCOL.md)); the gateway talks to the source:
+
+- [Alpaca](https://alpaca.markets): the one process that holds your API keys and talks to Alpaca's Trading and
+  Market Data APIs.
+- Yahoo Finance (unofficial): market data without an account or keys.
+- A simulated account in the gateway, on either source's prices.
+
+The package and command are still called `alpacagw`; they are renamed in a later version.
 
 Status: early, paper accounts only so far.
 

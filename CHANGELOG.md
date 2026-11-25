@@ -6,6 +6,9 @@ What each version brings, for users. The build writes the section of the version
 
 ## Next
 
+- **New name: Brackfast Gateway** (formerly the Alpaca Gateway): it is no longer for Alpaca alone (Yahoo
+  Finance, the simulated account). The program's folder, launcher and settings keep their old names for
+  now; they follow in a later version, which takes your settings over.
 - **Settings:** "Check for updates at start" moved to the About tab, next to Check for updates; it is
   saved as soon as it is clicked.
 - **Yahoo Finance as the data source (unofficial):** market data without an account or keys: "Use Yahoo

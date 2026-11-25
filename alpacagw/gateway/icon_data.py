@@ -1,4 +1,4 @@
-"""The Alpaca Gateway's window icon: (size, RGBA pixels zlib-compressed, base64), made by tools/make_icon.py
+"""The Brackfast Gateway's window icon: (size, RGBA pixels zlib-compressed, base64), made by tools/make_icon.py
 from the logo (assets/logo.svg). Do not edit: run the tool."""
 
 ICONS = [

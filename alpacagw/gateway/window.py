@@ -262,14 +262,14 @@ class GatewayWindow:
 		self.interrupts = 0                         # CTRL-C presses in the console (_interrupt)
 		self.quitting = False
 		self.settings_pane = imgui.ImVec2(0, 0)       # the largest settings tab seen: its pane's size (all tabs take it)
-		self.title = "Alpaca Gateway"
+		self.title = "Brackfast Gateway"
 
 	def run(self) -> None:
 		"""The OS main window stays hidden: the gateway's window is a Dear ImGui window in an OS window
 		of its own (multi-viewports), with imgui's dark title bar instead of the system's. No ini file:
 		size and place are the defaults at every start."""
 		live = self.launcher.environment == "live"
-		self.title = f"Alpaca Gateway - {'LIVE' if live else 'paper'}"
+		self.title = f"Brackfast Gateway - {'LIVE' if live else 'paper'}"
 		set_app_id()                                 # before the first window: our own taskbar group
 		params = hello_imgui.RunnerParams()
 		params.app_window_params.window_title = self.title
@@ -399,7 +399,7 @@ class GatewayWindow:
 		logo = round(height * 0.78)
 		_logo(dl, pos.x + 10, pos.y + (height - logo) / 2, logo)
 		dl.add_text(imgui.get_font(), text_h, imgui.ImVec2(pos.x + 10 + logo + 8, pos.y + (height - text_h) / 2),
-			imgui.get_color_u32(TITLE_TEXT), "Alpaca Gateway")
+			imgui.get_color_u32(TITLE_TEXT), "Brackfast Gateway")
 
 		buttons = ("settings", "minimize", "close")       # About: a tab of the settings
 		imgui.set_cursor_screen_pos(pos)
@@ -857,7 +857,7 @@ class GatewayWindow:
 			return
 		imgui.spacing()
 		imgui.align_text_to_frame_padding()
-		imgui.text_colored(NEWER, f"Alpaca Gateway {u.latest} is available.")
+		imgui.text_colored(NEWER, f"Brackfast Gateway {u.latest} is available.")
 		imgui.same_line()
 		if imgui.small_button("Download page"):
 			import webbrowser

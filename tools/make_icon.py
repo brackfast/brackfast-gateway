@@ -1,4 +1,4 @@
-"""Draw the Alpaca Gateway's icon (assets/logo.svg's shapes) at every size it is needed:
+"""Draw the Brackfast Gateway's icon (assets/logo.svg's shapes) at every size it is needed:
 
 	uv run --no-project --with pillow tools/make_icon.py
 

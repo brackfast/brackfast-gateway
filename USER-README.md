@@ -1,5 +1,6 @@
-The Alpaca Gateway runs on your computer between your trading programs and your Alpaca account
-(https://alpaca.markets). It is the only program that holds your Alpaca API key. Your trading
+The Brackfast Gateway (formerly the Alpaca Gateway) runs on your computer between your trading
+programs and the market: your Alpaca account (https://alpaca.markets), or Yahoo Finance's prices
+with a simulated account. It is the only program that holds your Alpaca API key. Your trading
 programs connect to the gateway, and the gateway places their orders and passes on account
 updates and market data.
 
@@ -200,6 +201,6 @@ Delete this folder, and the settings folder listed under Settings.
 LICENSES
 --------
 
-The Alpaca Gateway is free software under the MIT license (LICENSE). python/ is a standalone
+The Brackfast Gateway is free software under the MIT license (LICENSE). python/ is a standalone
 Python with the libraries the gateway uses; their copyright notices and licenses are in
 THIRD-PARTY-LICENSES.txt (also Settings, About: Open the licenses).

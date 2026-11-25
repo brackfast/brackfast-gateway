@@ -34,7 +34,7 @@ from .sim import Simulation
 
 CONFIG_FILE = "config.cfg"
 TEMPLATE = """\
-; Alpaca Gateway: the account. The gateway only reads this file, it never writes credentials.
+; Brackfast Gateway: the Alpaca account. The gateway only reads this file, it never writes credentials.
 ; Left empty, key_id / secret_key are asked for at every start (and kept in memory only).
 ; Data feed, socket port and local-only connections are in the gateway's settings (the gear).
 [alpaca]
@@ -46,7 +46,7 @@ LOG_FORMAT = "%(asctime)s.%(msecs)03d | %(name)-18s | %(levelname)-7s | %(messag
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
-	p = argparse.ArgumentParser(prog="alpacagw", description=f"Alpaca Gateway {__version__}")
+	p = argparse.ArgumentParser(prog="alpacagw", description=f"Brackfast Gateway {__version__}")
 	p.add_argument("--config", metavar="FILE", help=f"the account file (default: {CONFIG_FILE} in the gateway's folder; "
 		"a file given here must exist)")
 	p.add_argument("--live", action="store_true", help="required when the account file is a live account, refused for "

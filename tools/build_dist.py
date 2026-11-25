@@ -1,4 +1,4 @@
-"""Build the Alpaca Gateway as a folder that runs with one click, for Windows and Linux:
+"""Build the Brackfast Gateway as a folder that runs with one click, for Windows and Linux:
 
 	uv run --no-project tools/build_dist.py               # both systems
 	uv run --no-project tools/build_dist.py --windows     # one of them (--linux)
@@ -68,12 +68,12 @@ SKIP_PYTHON = ("idlelib/", "tkinter/", "turtledemo/", "ensurepip/", "test/", "si
 DOCS = ("LICENSE",)                  # README.md, PROTOCOL.md: for developers, not in the archives
 
 WINDOWS_LAUNCHER = """@echo off
-rem Starts the Alpaca Gateway with the Python in this folder; pythonw: no console window stays open.
+rem Starts the Brackfast Gateway with the Python in this folder; pythonw: no console window stays open.
 cd /d "%~dp0"
 start "" "%~dp0python\\pythonw.exe" -E -s -m alpacagw %*
 """
 LINUX_LAUNCHER = """#!/bin/sh
-# Starts the Alpaca Gateway with the Python in this folder.
+# Starts the Brackfast Gateway with the Python in this folder.
 cd "$(dirname "$(readlink -f "$0")")" || exit 1
 exec ./python/bin/python3 -E -s -m alpacagw "$@"
 """
@@ -102,7 +102,7 @@ def is_release(v: str) -> bool:
 
 def readme(v: str) -> str:
 	"""README.txt in the archive: USER-README.md under a title with the version."""
-	title = f"Alpaca Gateway {v}"
+	title = f"Brackfast Gateway {v}"
 	return f"{title}\n{'=' * len(title)}\n\n" + (ROOT / "USER-README.md").read_text(encoding="utf-8")
 
 
@@ -112,7 +112,7 @@ def changes(v: str) -> str:
 	m = re.search(rf"^## {re.escape(v)}[^\n]*\n(.*?)(?=^## |\Z)", text, re.M | re.S)
 	if m is None or not m.group(1).strip():
 		sys.exit(f"CHANGELOG.md has no section '## {v}': describe this version's changes there first")
-	return f"# Alpaca Gateway {v}\n\n{m.group(1).strip()}\n"
+	return f"# Brackfast Gateway {v}\n\n{m.group(1).strip()}\n"
 
 
 def dev_changes(v: str) -> str | None:
@@ -123,7 +123,7 @@ def dev_changes(v: str) -> str | None:
 		return None
 	last = re.search(r"^## (\d+\.\d+\.\d+\S*)", text, re.M)
 	since = f" since {last.group(1)}" if last else ""
-	return f"# Alpaca Gateway {v}\n\nA development build: the changes{since}.\n\n{m.group(1).strip()}\n"
+	return f"# Brackfast Gateway {v}\n\nA development build: the changes{since}.\n\n{m.group(1).strip()}\n"
 
 
 def download(url: str, sha256: str) -> Path:
@@ -220,7 +220,7 @@ class DirWriter(Writer):
 def build(system: str, as_dir: bool) -> Path:
 	target = TARGETS[system]
 	v = version()
-	print(f"{system}: Alpaca Gateway {v}")
+	print(f"{system}: Brackfast Gateway {v}")
 	python = download(target["python"], target["sha256"])
 	dist = ROOT / "dist"
 	dist.mkdir(exist_ok=True)
@@ -265,7 +265,7 @@ def build(system: str, as_dir: bool) -> Path:
 
 
 def main() -> None:
-	p = argparse.ArgumentParser(description="Build the Alpaca Gateway for Windows and Linux (Python source).")
+	p = argparse.ArgumentParser(description="Build the Brackfast Gateway for Windows and Linux (Python source).")
 	p.add_argument("--windows", action="store_true")
 	p.add_argument("--linux", action="store_true")
 	p.add_argument("--dir", action="store_true", help="Windows as a folder dist/alpaca-gateway instead of the zip")
