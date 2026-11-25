@@ -20,7 +20,7 @@ import imgui_bundle
 import msgspec
 from imgui_bundle import hello_imgui, imgui, immapp
 
-from ..client.config import FEEDS, Credentials
+from ..alpaca.config import FEEDS, Credentials
 from . import about, look, settings as settings_mod, updates as updates_mod
 from ..protocol import Status
 from .core import Snapshot
@@ -51,7 +51,7 @@ LOGO_BACKGROUND = imgui.ImVec4(0x0C / 255, 0x0E / 255, 0x15 / 255, 1.0)   # the 
 LOGO_BLUE = imgui.ImVec4(0x3B / 255, 0x6E / 255, 0xF5 / 255, 1.0)
 LOGO_GREEN = imgui.ImVec4(0x22 / 255, 0xAB / 255, 0x94 / 255, 1.0)
 
-log = logging.getLogger("alpacagw.window")
+log = logging.getLogger("brackfastgw.window")
 _glfw_lib: Any = None
 
 
@@ -208,7 +208,7 @@ def set_app_id() -> None:
 	if sys.platform != "win32":
 		return
 	try:
-		ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("AlpacaGateway.AlpacaGateway")
+		ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("Brackfast.Gateway")
 	except (OSError, AttributeError) as exc:
 		log.debug("app id: %s", exc)
 

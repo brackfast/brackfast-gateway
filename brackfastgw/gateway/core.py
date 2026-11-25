@@ -18,7 +18,7 @@ import msgspec
 from aiohttp import web
 
 from .. import __version__
-from ..client import Alpaca
+from ..alpaca import Alpaca
 from ..protocol import (
 	FINAL, PROTOCOL_VERSION, Account, CancelAll, CancelOrder, ClosePosition, Event, FlattenAll, GetBars, Hello,
 	Message, Order, Position, ReplaceOrder, Reply, Status, SubmitBracket, SubmitOco, SubmitOrder, Subscribe,
@@ -115,7 +115,7 @@ class GatewayCore:
 		self.port = port
 		self.refresh = refresh
 		self.order_poll = order_poll
-		self.log = log or logging.getLogger("alpacagw.gateway")
+		self.log = log or logging.getLogger("brackfastgw.gateway")
 		self.status = Status(state="starting")
 		self.account: Account | None = None
 		self.rest_ok = False                     # the last account / positions request worked
@@ -367,7 +367,7 @@ class GatewayCore:
 		return ws
 
 	def _welcome(self, client: Client) -> None:
-		client.send(Welcome(protocol=PROTOCOL_VERSION, gateway=f"alpacagw {__version__}", broker=self.broker.name,
+		client.send(Welcome(protocol=PROTOCOL_VERSION, gateway=f"brackfastgw {__version__}", broker=self.broker.name,
 			environment=self.broker.environment, account=self.account.account if self.account else ""))
 		client.send(self.status)
 		if self.account is not None:

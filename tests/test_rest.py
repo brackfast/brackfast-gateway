@@ -2,7 +2,7 @@ import msgspec
 import pytest
 from aiohttp import web
 
-from alpacagw.client import AlpacaError, BarsParams, MarketDataClient, OrderRequest, TradingClient
+from brackfastgw.alpaca import AlpacaError, BarsParams, MarketDataClient, OrderRequest, TradingClient
 
 from fake_alpaca import CREDENTIALS, KEY, FakeAlpaca
 

@@ -1,11 +1,11 @@
 """Start the gateway:
 
-	alpacagw                    # window, ws://127.0.0.1:4102/ (paper)
-	alpacagw --live             # config.cfg is a live account: needs --live (the same port, 4102)
-	alpacagw --headless         # no window (server, service)
-	alpacagw --simulate         # a simulated account: orders stay in the gateway, Alpaca gives the market data
-	alpacagw --yahoo            # Yahoo Finance's market data (unofficial; no account, no keys), a simulated account
-	alpacagw --config other.cfg # another account file than config.cfg
+	brackfastgw                    # window, ws://127.0.0.1:4102/ (paper)
+	brackfastgw --live             # config.cfg is a live account: needs --live (the same port, 4102)
+	brackfastgw --headless         # no window (server, service)
+	brackfastgw --simulate         # a simulated account: orders stay in the gateway, Alpaca gives the market data
+	brackfastgw --yahoo            # Yahoo Finance's market data (unofficial; no account, no keys), a simulated account
+	brackfastgw --config other.cfg # another account file than config.cfg
 
 The account's credentials come from config.cfg in the gateway's folder (the project folder, or the
 folder of the executable), or from the file given with --config; the gateway only reads it. Port, local-only and data feed come from the
@@ -16,6 +16,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import logging
+import shutil
 import signal
 import sys
 import threading
@@ -25,7 +26,7 @@ from pathlib import Path
 import msgspec
 
 from .. import __version__
-from ..client import Alpaca, AlpacaConfig, Credentials, load_config
+from ..alpaca import Alpaca, AlpacaConfig, Credentials, load_config
 from ..protocol import PORT
 from . import redact, settings as settings_mod, updates as updates_mod
 from .barcache import BarCache
@@ -33,12 +34,13 @@ from .core import GatewayCore
 from .sim import Simulation
 
 CONFIG_FILE = "config.cfg"
+OLD_PROGRAM_FOLDER = "alpaca-gateway"        # the Alpaca Gateway's folder (up to 2026-11): its config.cfg is taken over
 TEMPLATE = """\
 ; Brackfast Gateway: the Alpaca account. The gateway only reads this file, it never writes credentials.
 ; Left empty, key_id / secret_key are asked for at every start (and kept in memory only).
 ; Data feed, socket port and local-only connections are in the gateway's settings (the gear).
 [alpaca]
-environment = paper        ; paper | live (live also needs: alpacagw --live)
+environment = paper        ; paper | live (live also needs: brackfastgw --live)
 key_id =
 secret_key =
 """
@@ -46,7 +48,7 @@ LOG_FORMAT = "%(asctime)s.%(msecs)03d | %(name)-18s | %(levelname)-7s | %(messag
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
-	p = argparse.ArgumentParser(prog="alpacagw", description=f"Brackfast Gateway {__version__}")
+	p = argparse.ArgumentParser(prog="brackfastgw", description=f"Brackfast Gateway {__version__}")
 	p.add_argument("--config", metavar="FILE", help=f"the account file (default: {CONFIG_FILE} in the gateway's folder; "
 		"a file given here must exist)")
 	p.add_argument("--live", action="store_true", help="required when the account file is a live account, refused for "
@@ -58,7 +60,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 		"keys), with a simulated account (also a setting)")
 	p.add_argument("--simulate", action="store_true", help="a simulated account: orders stay in the gateway and fill "
 		"from Alpaca's quotes (also a setting)")
-	p.add_argument("--log", default="", help="log file (default: alpacagw-<environment>.log)")
+	p.add_argument("--log", default="", help="log file (default: brackfastgw-<environment>.log)")
 	return p.parse_args(argv)
 
 
@@ -119,7 +121,7 @@ class Launcher:
 				asyncio.run(core.run())
 			except BaseException as exc:
 				self.error = exc
-				logging.getLogger("alpacagw").error("gateway stopped: %s", exc)
+				logging.getLogger("brackfastgw").error("gateway stopped: %s", exc)
 
 		self.thread = threading.Thread(target=serve, name="gateway", daemon=True)
 		self.thread.start()
@@ -153,7 +155,7 @@ def make_core(config: AlpacaConfig, host: str | None, port: int | None, simulate
 	"""The gateway for an account: host, port and data feed from its environment's settings, unless
 	given on the command line. ``simulate`` (or the setting): a simulated account, kept next to the settings.
 	``source`` (or the setting) "yahoo": Yahoo Finance's data instead of Alpaca's, no keys, the account simulated."""
-	log = logging.getLogger("alpacagw")
+	log = logging.getLogger("brackfastgw")
 	settings = settings_mod.load(config.environment)
 	host = host or settings.host
 	port = port or settings.port_for(config.environment)
@@ -167,7 +169,7 @@ def make_core(config: AlpacaConfig, host: str | None, port: int | None, simulate
 		from .yahoo import YahooRelay
 		simulation = Simulation(file=settings_mod.simulation_file("yahoo"), cash=settings.sim_cash,
 			all_hours=settings.sim_all_hours)
-		log.info("alpacagw %s, Yahoo Finance data (unofficial), simulated account (%s), ws://%s:%d/, bar cache %s",
+		log.info("brackfastgw %s, Yahoo Finance data (unofficial), simulated account (%s), ws://%s:%d/, bar cache %s",
 			__version__, simulation.file, host, port, "on" if cache.enabled else "off")
 		return GatewayCore(market=YahooRelay(cache=cache, **intervals), host=host, port=port, simulation=simulation,
 			**intervals)
@@ -180,7 +182,7 @@ def make_core(config: AlpacaConfig, host: str | None, port: int | None, simulate
 		simulation = Simulation(file=settings_mod.simulation_file(config.environment), cash=settings.sim_cash,
 			all_hours=settings.sim_all_hours)
 		log.info("simulated account (%s): no order reaches Alpaca", simulation.file)
-	log.info("alpacagw %s, %s keys, %s data, ws://%s:%d/, quotes every %d ms, forming bars every %d ms",
+	log.info("brackfastgw %s, %s keys, %s data, ws://%s:%d/, quotes every %d ms, forming bars every %d ms",
 		__version__, config.environment, feed, host, port, settings.quote_interval_ms, settings.bar_interval_ms)
 	return GatewayCore(Alpaca(config, stock_feed=feed), host=host, port=port, simulation=simulation, bar_cache=cache,
 		**intervals)
@@ -194,30 +196,38 @@ def main(argv: list[str] | None = None) -> int:
 		if not cfg.is_file() and not given.is_absolute() and (program_folder() / given).is_file():
 			cfg = (program_folder() / given).resolve()   # a name next to config.cfg (a shortcut's own start folder)
 		if not cfg.is_file():
-			print(f"alpacagw: account file {cfg} not found", file=sys.stderr)
+			print(f"brackfastgw: account file {cfg} not found", file=sys.stderr)
 			return 2
 	else:
 		cfg = config_path()
+	old_cfg = program_folder().with_name(OLD_PROGRAM_FOLDER) / CONFIG_FILE
+	if not args.config and not cfg.is_file() and old_cfg.is_file():
+		shutil.copy2(old_cfg, cfg)                   # unzipped next to the Alpaca Gateway: its account file
+		print(f"brackfastgw: {CONFIG_FILE} copied from {old_cfg.parent}", file=sys.stderr)
 	if not cfg.is_file():
 		cfg.write_text(TEMPLATE, encoding="utf-8")
-		print(f"alpacagw: {cfg} did not exist: a template was written. Credentials left empty there are asked "
+		print(f"brackfastgw: {cfg} did not exist: a template was written. Credentials left empty there are asked "
 			"for at start (and not stored).", file=sys.stderr)
 	try:
 		config = load_config(cfg, require_credentials=False)
 	except ValueError as exc:
-		print(f"alpacagw: {exc}", file=sys.stderr)
+		print(f"brackfastgw: {exc}", file=sys.stderr)
 		return 2
 	if config.credentials is not None:           # the account is fixed by the file: --live must match it
 		if config.is_live and not args.live:
-			print(f"alpacagw: {cfg} is a live account: start with --live to trade it", file=sys.stderr)
+			print(f"brackfastgw: {cfg} is a live account: start with --live to trade it", file=sys.stderr)
 			return 2
 		if args.live and not config.is_live:
-			print(f"alpacagw: --live given, but {cfg} is a {config.environment} account", file=sys.stderr)
+			print(f"brackfastgw: --live given, but {cfg} is a {config.environment} account", file=sys.stderr)
 			return 2
 	elif args.live:
 		config = msgspec.structs.replace(config, environment="live")    # the login form's default
-	setup_logging(args.log or "alpacagw.log")
-	logging.getLogger("alpacagw").info("account file %s%s", cfg, "" if config.credentials else " (no credentials)")
+	setup_logging(args.log or "brackfastgw.log")
+	try:
+		settings_mod.take_over_old_folder()
+	except OSError as exc:                       # the defaults then; the old folder stays as it is
+		logging.getLogger("brackfastgw").warning("the Alpaca Gateway's settings not taken over: %s", exc)
+	logging.getLogger("brackfastgw").info("account file %s%s", cfg, "" if config.credentials else " (no credentials)")
 
 	update_check = updates_mod.UpdateCheck()
 	if settings_mod.load(config.environment).check_updates:
@@ -225,7 +235,7 @@ def main(argv: list[str] | None = None) -> int:
 	source = "yahoo" if args.yahoo else ""
 	if args.headless:
 		if config.credentials is None and data_source(config.environment, source) == "alpaca":
-			print(f"alpacagw: no credentials in {cfg}: fill in key_id and secret_key (headless, nobody to ask)",
+			print(f"brackfastgw: no credentials in {cfg}: fill in key_id and secret_key (headless, nobody to ask)",
 				file=sys.stderr)
 			return 2
 		return _run_headless(make_core(config, args.host, args.port, args.simulate, source))
@@ -233,7 +243,7 @@ def main(argv: list[str] | None = None) -> int:
 	try:
 		from .window import GatewayWindow
 	except ImportError:
-		print("alpacagw: the window needs imgui-bundle (pip install alpacagw[ui]); or use --headless", file=sys.stderr)
+		print("brackfastgw: the window needs imgui-bundle (pip install brackfastgw[ui]); or use --headless", file=sys.stderr)
 		return 2
 	launcher = Launcher(config, host=args.host, port=args.port, simulate=args.simulate, source=source)
 	if not launcher.needs_login():
@@ -258,7 +268,7 @@ def _run_headless(core: GatewayCore) -> int:
 	except KeyboardInterrupt:
 		pass
 	except Exception as exc:
-		logging.getLogger("alpacagw").error("gateway stopped: %s", exc)
+		logging.getLogger("brackfastgw").error("gateway stopped: %s", exc)
 		return 1
 	return 0
 

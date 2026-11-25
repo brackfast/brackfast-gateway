@@ -124,7 +124,7 @@ class Welcome(Message, tag="welcome"):
 	"""Answer to Hello. Then the current state follows: Status, Account, every Position,
 	every working Order (and the orders that finished today)."""
 	protocol: int
-	gateway: str                        # name and version, e.g. "alpacagw 0.1.0"
+	gateway: str                        # name and version, e.g. "brackfastgw 0.1.0"
 	broker: str                         # "alpaca"
 	environment: str                    # "paper" | "live"
 	account: str                        # account number

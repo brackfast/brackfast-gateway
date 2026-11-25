@@ -12,7 +12,7 @@ not depend on the broker, so an app written for it works with any gateway that s
   be ignored.
 - Times are msgpack timestamps (extension type -1), always UTC.
 - Prices and quantities are floats. Symbols are upper case (the gateway converts them).
-- The Python definitions are in [`alpacagw/protocol.py`](alpacagw/protocol.py).
+- The Python definitions are in [`brackfastgw/protocol.py`](brackfastgw/protocol.py).
 
 ## Connection
 

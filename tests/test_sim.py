@@ -5,11 +5,11 @@ from datetime import datetime, timezone
 import aiohttp
 import pytest
 
-from alpacagw.client import Quote as AlpacaQuote
-from alpacagw.client.models.market import QuoteData, TradeData
-from alpacagw.gateway.core import GatewayCore
-from alpacagw.gateway.sim import SimBroker, Simulation, day_end
-from alpacagw.protocol import (
+from brackfastgw.alpaca import Quote as AlpacaQuote
+from brackfastgw.alpaca.models.market import QuoteData, TradeData
+from brackfastgw.gateway.core import GatewayCore
+from brackfastgw.gateway.sim import SimBroker, Simulation, day_end
+from brackfastgw.protocol import (
 	PROTOCOL_VERSION, Account, CancelOrder, ClosePosition, Fill, FlattenAll, Hello, Order, Position, Quote, Reply,
 	SubmitBracket, SubmitOco, Welcome,
 )

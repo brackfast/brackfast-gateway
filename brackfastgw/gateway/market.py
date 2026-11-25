@@ -16,7 +16,7 @@ import logging
 from datetime import datetime, timedelta, timezone
 from typing import Any, Callable
 
-from ..client import Bar as AlpacaBar, BarsParams, Quote as AlpacaQuote, Trade, TradeData, TradesParams, UpdatedBar
+from ..alpaca import Bar as AlpacaBar, BarsParams, Quote as AlpacaQuote, Trade, TradeData, TradesParams, UpdatedBar
 from ..protocol import Bar, BarData, Bars, GetBars, Quote
 from .barcache import BarCache
 
@@ -103,7 +103,7 @@ class MarketRelay:
 		self.source = f"alpaca-{self.feed}"
 		self.on_state: Callable[[], None] = lambda: None     # the stream connected / disconnected (the gateway sets it)
 		self.publish = publish                    # (kind "bar" / "quote", symbol, message)
-		self.log = log or logging.getLogger("alpacagw.market")
+		self.log = log or logging.getLogger("brackfastgw.market")
 		self.bar_interval = bar_interval
 		self.quote_interval = quote_interval
 		self._quote_refs: dict[str, int] = {}

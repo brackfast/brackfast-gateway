@@ -3,11 +3,11 @@ from decimal import Decimal
 import msgspec
 import pytest
 
-from alpacagw.client import (
+from brackfastgw.alpaca import (
 	BarsParams, Credentials, OrderRequest, ReplaceOrderRequest, TradeUpdateMsg, TradingMessage, load_config,
 )
-from alpacagw.client.http import encode_params
-from alpacagw.client.models import Order
+from brackfastgw.alpaca.http import encode_params
+from brackfastgw.alpaca.models import Order
 
 
 def test_bracket_request_body():
@@ -81,7 +81,7 @@ def test_config(tmp_path):
 
 
 def test_config_without_credentials(tmp_path):
-	from alpacagw.gateway.app import TEMPLATE
+	from brackfastgw.gateway.app import TEMPLATE
 	path = tmp_path / "config.cfg"
 	path.write_text(TEMPLATE)
 	config = load_config(path, require_credentials=False)
@@ -91,7 +91,7 @@ def test_config_without_credentials(tmp_path):
 
 
 def test_gateway_settings(tmp_path):
-	from alpacagw.gateway import settings
+	from brackfastgw.gateway import settings
 	file = tmp_path / "settings.json"
 	assert settings.load("paper", file).port_for("paper") == 4102
 	settings.save("paper", settings.GatewaySettings(stock_feed="sip", port=4555, local_only=False), file)

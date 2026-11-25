@@ -2,7 +2,7 @@ import asyncio
 
 import pytest
 
-from alpacagw.client import Bar, Credentials, Quote, StockDataStream, StreamError, TradeUpdate, TradingStream
+from brackfastgw.alpaca import Bar, Credentials, Quote, StockDataStream, StreamError, TradeUpdate, TradingStream
 
 from fake_alpaca import CREDENTIALS, FakeAlpaca
 from test_models import ORDER

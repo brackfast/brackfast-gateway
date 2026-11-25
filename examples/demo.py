@@ -11,7 +11,7 @@ import logging
 import sys
 from datetime import datetime, timedelta, timezone
 
-from alpacagw.client import (
+from brackfastgw.alpaca import (
 	Alpaca, Bar, BarsParams, GetOrdersParams, QueryOrderStatus, Quote, StreamReady, TradeUpdate, Trade,
 )
 

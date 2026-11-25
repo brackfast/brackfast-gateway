@@ -2,27 +2,32 @@
 
 	uv run --no-project tools/build_dist.py               # both systems
 	uv run --no-project tools/build_dist.py --windows     # one of them (--linux)
-	uv run --no-project tools/build_dist.py --dir         # Windows as a folder (dist/alpaca-gateway), for testing
+	uv run --no-project tools/build_dist.py --dir         # Windows as a folder (dist/brackfast-gateway), for testing
+	uv run --no-project tools/build_dist.py --bridge      # also as alpaca-gateway-...: the first release after the rename
 
--> dist/alpaca-gateway-<version>-windows-x86_64.zip and dist/alpaca-gateway-<version>-linux-x86_64.tar.xz, each with
-one folder alpaca-gateway/:
+-> dist/brackfast-gateway-<version>-windows-x86_64.zip and dist/brackfast-gateway-<version>-linux-x86_64.tar.xz, each
+with one folder brackfast-gateway/:
 
-	Alpaca Gateway.cmd / alpaca-gateway    the launcher (double-click)
-	alpacagw/                              the gateway, as Python source
+	Brackfast Gateway.cmd / brackfast-gateway   the launcher (double-click)
+	brackfastgw/                           the gateway, as Python source
 	python/                                a standalone Python (python-build-standalone, as uv's) with the
 	                                       dependencies in its site-packages (versions from uv.lock)
 	LICENSE, README.txt                    README.txt: USER-README.md (for users; README.md and
 	                                       PROTOCOL.md are for developers and stay out)
 	THIRD-PARTY-LICENSES.txt               the notices and license texts of what it ships with
-	                                       (alpacagw/gateway/about.py: python -m alpacagw.gateway.about)
+	                                       (brackfastgw/gateway/about.py: python -m brackfastgw.gateway.about)
 
 No compiled program: the gateway stays readable Python. Both archives are built on any system: the Python comes
 from its release archive (checked against its SHA-256), the wheels through uv for the target platform
 (``uv pip install --python-platform``). config.cfg is written next to the launcher at the first start.
 
-A release (a plain X.Y.Z version from the tag) also gets dist/alpaca-gateway-<version>-changes.md: that version's
+A release (a plain X.Y.Z version from the tag) also gets dist/brackfast-gateway-<version>-changes.md: that version's
 section of CHANGELOG.md, for the website. The build stops if CHANGELOG.md has none. A development build
 (0.1.1.dev8+g...) gets one from CHANGELOG.md's "## Next" (the changes since the last release), if there is one.
+
+--bridge (the first release after the rename from the Alpaca Gateway): each archive also as
+alpaca-gateway-<version>-..., the same file, so that the Alpaca Gateways out there find it in the website's
+index.json (their update check looks for that name); the Download page shows it once, as the Brackfast Gateway.
 """
 from __future__ import annotations
 
@@ -43,7 +48,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 CACHE = ROOT / "build" / "cache"
-NAME = "alpaca-gateway"
+NAME = "brackfast-gateway"
+OLD_NAME = "alpaca-gateway"              # the name up to 2026-11 (the Alpaca Gateway): --bridge
 PYTHON = "3.13"
 PBS = "https://github.com/astral-sh/python-build-standalone/releases/download/20260203/"
 TARGETS = {
@@ -70,26 +76,26 @@ DOCS = ("LICENSE",)                  # README.md, PROTOCOL.md: for developers, n
 WINDOWS_LAUNCHER = """@echo off
 rem Starts the Brackfast Gateway with the Python in this folder; pythonw: no console window stays open.
 cd /d "%~dp0"
-start "" "%~dp0python\\pythonw.exe" -E -s -m alpacagw %*
+start "" "%~dp0python\\pythonw.exe" -E -s -m brackfastgw %*
 """
 LINUX_LAUNCHER = """#!/bin/sh
 # Starts the Brackfast Gateway with the Python in this folder.
 cd "$(dirname "$(readlink -f "$0")")" || exit 1
-exec ./python/bin/python3 -E -s -m alpacagw "$@"
+exec ./python/bin/python3 -E -s -m brackfastgw "$@"
 """
 _version: str | None = None
 
 
 def version() -> str:
 	"""The gateway's version from git: the latest tag vX.Y.Z, X.Y.(Z+1).devN+g<commit> for commits after it (and
-	.d<date> with uncommitted changes). Reinstalling alpacagw rewrites alpacagw/_version.py from git (hatch-vcs,
+	.d<date> with uncommitted changes). Reinstalling brackfastgw rewrites brackfastgw/_version.py from git (hatch-vcs,
 	pyproject.toml); the build ships that file with the source."""
 	global _version
 	if _version is None:
-		if subprocess.run(["uv", "sync", "--frozen", "--inexact", "--project", str(ROOT), "--reinstall-package", "alpacagw"],
+		if subprocess.run(["uv", "sync", "--frozen", "--inexact", "--project", str(ROOT), "--reinstall-package", "brackfastgw"],
 				stdout=subprocess.DEVNULL).returncode:
 			sys.exit("uv sync failed")
-		text = (ROOT / "alpacagw" / "_version.py").read_text(encoding="utf-8")
+		text = (ROOT / "brackfastgw" / "_version.py").read_text(encoding="utf-8")
 		_version = re.search(r"^__version__ = version = '([^']+)'", text, re.M).group(1)
 		if not is_release(_version):
 			print(f"warning: {_version} is not a release: tag the commit (git tag -a vX.Y.Z) and commit all changes")
@@ -155,7 +161,7 @@ def install_packages(target: dict, out: Path) -> None:
 
 
 class Writer:
-	"""Files into the archive (or folder), all under alpaca-gateway/."""
+	"""Files into the archive (or folder), all under brackfast-gateway/."""
 
 	def __init__(self, path: Path) -> None:
 		self.path = path
@@ -217,7 +223,7 @@ class DirWriter(Writer):
 		print(f"  skipped symlink {name} -> {target}")
 
 
-def build(system: str, as_dir: bool) -> Path:
+def build(system: str, as_dir: bool, bridge: bool = False) -> Path:
 	target = TARGETS[system]
 	v = version()
 	print(f"{system}: Brackfast Gateway {v}")
@@ -243,24 +249,28 @@ def build(system: str, as_dir: bool) -> Path:
 		packages = Path(tmp) / "site-packages"
 		install_packages(target, packages)
 		writer.tree(packages, target["site_packages"])
-	writer.tree(ROOT / "alpacagw", "alpacagw")
+	writer.tree(ROOT / "brackfastgw", "brackfastgw")
 	for doc in DOCS:
 		writer.file(doc, (ROOT / doc).read_bytes())
 	if system == "windows":
-		writer.file("Alpaca Gateway.cmd", WINDOWS_LAUNCHER.replace("\n", "\r\n").encode())
+		writer.file("Brackfast Gateway.cmd", WINDOWS_LAUNCHER.replace("\n", "\r\n").encode())
 	else:
-		writer.file("alpaca-gateway", LINUX_LAUNCHER.encode(), 0o755)
+		writer.file("brackfast-gateway", LINUX_LAUNCHER.encode(), 0o755)
 	text = readme(v)
 	writer.file("README.txt", (text.replace("\n", "\r\n") if system == "windows" else text).encode())
 	# the third-party notices and license texts (Dear ImGui, GLFW and the fonts have no files of their own in
 	# site-packages); the About tab opens this file
-	licenses = subprocess.run(["uv", "run", "--no-sync", "--project", str(ROOT), "python", "-m", "alpacagw.gateway.about"],
+	licenses = subprocess.run(["uv", "run", "--no-sync", "--project", str(ROOT), "python", "-m", "brackfastgw.gateway.about"],
 		cwd=ROOT, capture_output=True, check=True).stdout.decode("utf-8")
 	licenses = licenses.replace("\r\n", "\n")          # stdout on Windows has \r\n already: once, not \r\r\n
 	writer.file("THIRD-PARTY-LICENSES.txt", (licenses.replace("\n", "\r\n") if system == "windows" else licenses).encode())
 	writer.close()
 	size = sum(p.stat().st_size for p in out.rglob("*")) if out.is_dir() else out.stat().st_size
 	print(f"  -> {out.relative_to(ROOT)} ({size / 1e6:.0f} MB)")
+	if bridge and not as_dir:
+		copy = out.with_name(OLD_NAME + out.name[len(NAME):])
+		shutil.copyfile(out, copy)
+		print(f"  -> {copy.relative_to(ROOT)} (the same, for the Alpaca Gateways' update check)")
 	return out
 
 
@@ -268,14 +278,16 @@ def main() -> None:
 	p = argparse.ArgumentParser(description="Build the Brackfast Gateway for Windows and Linux (Python source).")
 	p.add_argument("--windows", action="store_true")
 	p.add_argument("--linux", action="store_true")
-	p.add_argument("--dir", action="store_true", help="Windows as a folder dist/alpaca-gateway instead of the zip")
+	p.add_argument("--dir", action="store_true", help="Windows as a folder dist/brackfast-gateway instead of the zip")
+	p.add_argument("--bridge", action="store_true", help=f"each archive also as {OLD_NAME}-... (the first release "
+		"after the rename: the Alpaca Gateways' update check finds it)")
 	a = p.parse_args()
 	systems = ["windows"] if a.dir else [s for s in TARGETS if getattr(a, s)] or list(TARGETS)
 	v = version()
 	# before building: a release without its changes stops here; a development build takes "## Next"
 	notes = changes(v) if is_release(v) else dev_changes(v)
 	for system in systems:
-		build(system, a.dir)
+		build(system, a.dir, a.bridge)
 	if notes is None:
 		print(f"no changes file: {v} is not a release, and CHANGELOG.md has no '## Next'")
 	elif not a.dir:

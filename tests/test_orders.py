@@ -2,8 +2,8 @@ import asyncio
 
 import pytest
 
-from alpacagw.gateway.orders import OrderTracker
-from alpacagw.protocol import Order
+from brackfastgw.gateway.orders import OrderTracker
+from brackfastgw.protocol import Order
 
 from fake_broker import FakeTrading
 
@@ -112,7 +112,7 @@ async def test_external_orders_are_adopted_after_the_grace(setup):
 
 async def test_external_bracket_adopted_as_bracket(setup):
 	broker, rec, tracker = setup
-	from alpacagw.client import OrderRequest
+	from brackfastgw.alpaca import OrderRequest
 	ext = await broker.submit_order(OrderRequest.bracket("NVDA", "buy", 3, take_profit=150, stop_loss=120,
 		limit_price=130, client_order_id="tv-7"))
 	for o in (ext, *ext.legs):
@@ -146,7 +146,7 @@ async def test_cancel_entry_cancels_legs(setup):
 
 async def test_load_adopts_working_brackets(setup):
 	broker, rec, _ = setup
-	from alpacagw.client import OrderRequest
+	from brackfastgw.alpaca import OrderRequest
 	ext = await broker.submit_order(OrderRequest.bracket("AMD", "sell", 2, take_profit=90, stop_loss=110,
 		limit_price=100, client_order_id="old-1"))
 	broker.fill(ext.id, 2, 100)
@@ -173,7 +173,7 @@ async def test_oco_exits(setup):
 
 async def test_external_oco_adopted_with_its_roles(setup):
 	broker, rec, tracker = setup
-	from alpacagw.client import OrderRequest
+	from brackfastgw.alpaca import OrderRequest
 	ext = await broker.submit_order(OrderRequest.oco("NVDA", "sell", 3, take_profit=150, stop_loss=120,
 		client_order_id="web-oco"))
 	for o in (ext, *ext.legs):

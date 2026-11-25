@@ -7,11 +7,21 @@ updates and market data.
 Nothing needs to be installed: everything the gateway needs is in this folder.
 
 
+COMING FROM THE ALPACA GATEWAY
+------------------------------
+
+The Brackfast Gateway is the Alpaca Gateway under a new name. At its first start it takes over the
+Alpaca Gateway's settings, simulated account and stored bars. Unzipped next to the old
+alpaca-gateway folder, it also copies config.cfg from there; otherwise copy config.cfg over
+yourself, or enter the keys in the window. A taskbar pin of "Alpaca Gateway.cmd" still starts
+the old one: pin "Brackfast Gateway.cmd" instead.
+
+
 STARTING THE GATEWAY
 --------------------
 
-- Windows: double-click "Alpaca Gateway.cmd".
-- Linux: double-click alpaca-gateway, or run ./alpaca-gateway in a terminal.
+- Windows: double-click "Brackfast Gateway.cmd".
+- Linux: double-click brackfast-gateway, or run ./brackfast-gateway in a terminal.
 
 The first start writes config.cfg into this folder (see "Your Alpaca account" below). If config.cfg
 has no API key, the window asks for one:
@@ -101,8 +111,8 @@ restart the gateway: the new settings apply from the next start.
 
 The settings are stored in:
 
-    Windows:  %APPDATA%\alpacagw\settings.json
-    Linux:    ~/.config/alpacagw/settings.json
+    Windows:  %APPDATA%\brackfastgw\settings.json
+    Linux:    ~/.config/brackfastgw/settings.json
 
 They hold no API keys.
 
@@ -137,7 +147,8 @@ go first). Each data feed (iex, sip, delayed_sip) has a file of its own. The Bar
 gateway's window (next to Clients and Log) lists them with their sizes; Clear empties one, Clear
 All every one. The files are in:
 
-    Windows:  %APPDATA%lpacagwar-cache    Linux:    ~/.config/alpacagw/bar-cache/
+    Windows:  %APPDATA%\brackfastgw\bar-cache
+    Linux:    ~/.config/brackfastgw/bar-cache/
 
 The files hold market data only and can be deleted at any time.
 
@@ -173,8 +184,8 @@ Without a window (--headless) the log says it.
 OPTIONS
 -------
 
-Options can be added to the start, for example in a Windows shortcut to "Alpaca Gateway.cmd" or
-after ./alpaca-gateway on Linux:
+Options can be added to the start, for example in a Windows shortcut to "Brackfast Gateway.cmd" or
+after ./brackfast-gateway on Linux:
 
     --config FILE   the account from FILE instead of config.cfg (FILE must exist)
     --live          start with the live account of config.cfg (or of FILE)
@@ -188,7 +199,7 @@ after ./alpaca-gateway on Linux:
 IF SOMETHING GOES WRONG
 -----------------------
 
-The gateway writes its log to alpacagw.log in this folder. If the gateway does not start or does
+The gateway writes its log to brackfastgw.log in this folder. If the gateway does not start or does
 something unexpected, look there first, and send that file along with any question.
 
 

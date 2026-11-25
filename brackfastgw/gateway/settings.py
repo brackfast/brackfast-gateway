@@ -1,6 +1,6 @@
 """Gateway settings from the window's settings dialog, one set per environment (paper / live).
 
-Kept as JSON in the user's config folder (%APPDATA%\\alpacagw\\settings.json on Windows). No
+Kept as JSON in the user's config folder (%APPDATA%\\brackfastgw\\settings.json on Windows). No
 credentials: those stay in the account's config file, which the gateway only reads. Command line
 options (--port, --host) override these settings.
 """
@@ -15,7 +15,7 @@ import msgspec
 
 from ..protocol import PORT
 
-log = logging.getLogger("alpacagw.settings")
+log = logging.getLogger("brackfastgw.settings")
 
 
 SOURCES = {"alpaca": "Alpaca", "yahoo": "Yahoo Finance (unofficial)"}     # data_source -> its name in the window
@@ -63,13 +63,42 @@ def path() -> Path:
 		base = Path.home() / "Library" / "Application Support"
 	else:
 		base = Path(os.environ.get("XDG_CONFIG_HOME") or Path.home() / ".config")
-	return base / "alpacagw" / "settings.json"
+	return base / "brackfastgw" / "settings.json"
 
 
 # Across versions (the file is in the user's folder: a new gateway finds the old one's): a value that does not fit
 # (a newer version's, a damaged file) costs only that setting, not every setting of both environments; what this
 # version does not know is kept and saved again (back to an older gateway loses nothing of a newer one's); saving one
 # environment keeps the other as it is; written through a temporary file (a crash leaves the old file).
+
+OLD_FOLDER = "alpacagw"                       # the folder's name up to the rename to the Brackfast Gateway (2026-11)
+
+
+def take_over_old_folder(folder: Path | None = None) -> bool:
+	"""The Alpaca Gateway's folder (``alpacagw``, next to ours) taken over once, at start: while ours does not exist
+	yet, its files (settings, simulated accounts, older settings' copies) are copied, the bar cache (it can be large)
+	moved; an Alpaca Gateway started again later finds its settings, rebuilds its cache. True when taken over."""
+	folder = folder or path().parent
+	old = folder.with_name(OLD_FOLDER)
+	if folder.exists() or not old.is_dir():
+		return False
+	import shutil
+	tmp = folder.with_name(folder.name + ".new")              # complete or not at all: a crash midway starts over
+	shutil.rmtree(tmp, ignore_errors=True)
+	tmp.mkdir(parents=True)
+	for item in old.iterdir():
+		if item.is_file():
+			shutil.copy2(item, tmp / item.name)
+	os.replace(tmp, folder)
+	cache = old / "bar-cache"
+	if cache.is_dir():
+		try:
+			shutil.move(cache, folder / "bar-cache")
+		except OSError as exc:                                 # in use (an Alpaca Gateway running): fetched anew
+			log.warning("bar cache not moved from %s: %s", cache, exc)
+	log.info("settings taken over from %s (the Alpaca Gateway's) into %s", old, folder)
+	return True
+
 
 def bar_cache_folder() -> Path:
 	"""Where the bar cache's files are (one per data source), next to the settings."""

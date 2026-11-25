@@ -1,6 +1,6 @@
 """Nothing secret in the log: the API key, its secret and the account number are taken out of every log line.
 
-The log (alpacagw.log) is meant to be sent along with a question. ``install`` puts the filter on the log handlers;
+The log (brackfastgw.log) is meant to be sent along with a question. ``install`` puts the filter on the log handlers;
 the key pair is registered when the gateway starts with it (``credentials``), the account number when Alpaca names
 it (``account``). Key and secret are replaced completely, the account number shortened (PA3…X1Y).
 """

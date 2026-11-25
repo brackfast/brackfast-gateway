@@ -4,9 +4,9 @@ from datetime import datetime, timedelta, timezone
 
 import aiohttp
 
-from alpacagw.gateway.core import GatewayCore
-from alpacagw.gateway.yahoo import Tick, YahooError, YahooRelay, bars_of, hourly, tick_of
-from alpacagw.protocol import (
+from brackfastgw.gateway.core import GatewayCore
+from brackfastgw.gateway.yahoo import Tick, YahooError, YahooRelay, bars_of, hourly, tick_of
+from brackfastgw.protocol import (
 	PROTOCOL_VERSION, Account, Bar, Bars, Fill, GetBars, Hello, Quote, Reply, SubmitBracket, Subscribe, Welcome,
 )
 
@@ -166,7 +166,7 @@ async def test_live_quotes_and_bars():
 
 
 async def test_the_gateway_on_yahoo(tmp_path):
-	from alpacagw.gateway.sim import Simulation
+	from brackfastgw.gateway.sim import Simulation
 	relay = Fake(quote_interval=0.01, bar_interval=0.01)
 	relay._send = lambda message: None
 	relay._stream = asyncio.get_running_loop().create_future()

@@ -99,7 +99,7 @@ class SimBroker:
 		self.start_cash = cash
 		self.all_hours = all_hours
 		self.clock = clock
-		self.log = log or logging.getLogger("alpacagw.sim")
+		self.log = log or logging.getLogger("brackfastgw.sim")
 		self.orders: dict[str, Order] = {}
 		self.pos: dict[str, Pos] = {}
 		self.cash = cash

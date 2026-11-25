@@ -27,11 +27,11 @@ import time
 from datetime import datetime, timedelta, timezone
 from typing import Any, Callable
 
-from ..client import (
+from ..alpaca import (
 	GetOrdersParams, OrderRequest, QueryOrderStatus, ReplaceOrderRequest, TradeUpdate,
 )
-from ..client import Order as AlpacaOrder
-from ..client.models.base import dec
+from ..alpaca import Order as AlpacaOrder
+from ..alpaca.models.base import dec
 from ..protocol import FINAL, Fill, Order
 
 STATUS = {
@@ -82,10 +82,10 @@ def _is_final(order: Order) -> bool:
 class OrderTracker:
 	def __init__(self, trading: Any, *, on_order: Callable[[Order], None], on_fill: Callable[[Order, Fill], None],
 			log: logging.Logger | None = None, adopt_grace: float = 2.0) -> None:
-		self.trading = trading                    # alpacagw.client.TradingClient (or a fake in tests)
+		self.trading = trading                    # brackfastgw.alpaca.TradingClient (or a fake in tests)
 		self.on_order = on_order
 		self.on_fill = on_fill
-		self.log = log or logging.getLogger("alpacagw.tracker")
+		self.log = log or logging.getLogger("brackfastgw.tracker")
 		self.adopt_grace = adopt_grace
 		self.orders: dict[str, Order] = {}        # gateway id -> Order
 		self._by_broker: dict[str, Order] = {}    # current Alpaca id -> Order

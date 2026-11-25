@@ -13,6 +13,19 @@ file's pattern.
 "Alpaca" stays where it means Alpaca: the data source / broker (`AlpacaBroker`, `market.py`, `client/` = Alpaca's
 API client, the `[alpaca]` section of config.cfg, the "Alpaca API key" field, Settings' data source "Alpaca").
 
+## Status (2026-11-25)
+
+- Step A done (13dab23 here, 5d7b649 Brackfast, d08dc13 Chartfast).
+- Step B 1-4 done: the package `brackfastgw` (`client` -> `alpaca`), the settings folder taken over at start
+  (`settings.take_over_old_folder`), config.cfg from a neighbouring `alpaca-gateway` folder, logs, AppUserModelID,
+  `updates.PRODUCT`, `build_dist.py` (names, launchers, `--bridge`), the Download page (`RENAMED`), Brackfast's and
+  Chartfast's connector `brackfast-gateway` with `gateway_host` / `gateway_port` (Brackfast settings version 6).
+  Checked: tests of all three; a headless start with an old `alpacagw` folder took it over and listened on its port;
+  Chartfast's gateway_check against it.
+- Open: step B 5 (the repo on the git server, the folder, the GitHub mirror with LICENSE / COPYRIGHT / mirror
+  identity "The Brackfast Gateway authors"); the first release with `--bridge`; the website deployed after the
+  mirror's rename (its links point to github.com/brackfast/brackfast-gateway).
+
 ## New names
 
 | | Old | New |

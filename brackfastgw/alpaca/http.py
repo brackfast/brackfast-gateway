@@ -75,7 +75,7 @@ class RestClient:
 		self._own_session: aiohttp.ClientSession | None = None
 		self._request_timeout = aiohttp.ClientTimeout(total=timeout)
 		self._max_retries = max_retries
-		self._log = logging.getLogger(f"alpacagw.{self.log_name}")
+		self._log = logging.getLogger(f"brackfastgw.{self.log_name}")
 
 	async def _session(self) -> aiohttp.ClientSession:
 		if self._provider is not None:

@@ -8,8 +8,8 @@ from decimal import Decimal
 
 import msgspec
 
-from alpacagw.client import Account, BarData, BarsPage, Order, Position, TradeUpdate
-from alpacagw.client.models.trading import FINAL_STATUSES, Asset
+from brackfastgw.alpaca import Account, BarData, BarsPage, Order, Position, TradeUpdate
+from brackfastgw.alpaca.models.trading import FINAL_STATUSES, Asset
 
 _ASSET = msgspec.convert({"id": "a1", "class": "us_equity", "exchange": "ARCA", "symbol": "SPY",
 	"name": "SPDR S&P 500 ETF Trust", "status": "active", "tradable": True}, Asset)
@@ -56,7 +56,7 @@ class FakeTrading:
 	async def submit_order(self, req) -> Order:
 		self.calls.append(f"submit {req.client_order_id}")
 		if self.reject:
-			from alpacagw.client import AlpacaError
+			from brackfastgw.alpaca import AlpacaError
 			raise AlpacaError(403, self.reject)
 		entry = self._new(client_order_id=req.client_order_id, symbol=req.symbol, side=str(req.side), type=str(req.type),
 			time_in_force=str(req.time_in_force), status="new", qty=req.qty, limit_price=req.limit_price,

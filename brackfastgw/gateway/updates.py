@@ -1,7 +1,7 @@
 """Check for updates: is there a newer Brackfast Gateway on the website than the one running?
 
 The website's Download page lists its files in ``download/index.json`` (name, size, SHA-256). The check reads the
-same file and looks for the gateway's archives for this system: ``alpaca-gateway-<version>-<date>-<system>.<ext>``
+same file and looks for the gateway's archives for this system: ``brackfast-gateway-<version>-<date>-<system>.<ext>``
 (``windows-x86_64``, ``linux-x86_64``, ...). Nothing is sent but the request itself (the version in the
 User-Agent): no account, no key. A failed check says so in Settings -> About and in the log, and is otherwise quiet.
 As Brackfast's ``updates.py``.
@@ -21,14 +21,14 @@ from .. import __version__
 
 INDEX_URL = "https://brackfast.io/download/index.json"           # the website's download index
 DOWNLOAD_PAGE = "https://brackfast.io/download.html"             # where the user downloads it
-PRODUCT = "alpaca-gateway"
+PRODUCT = "brackfast-gateway"                                 # up to 2026-11 "alpaca-gateway"
 TIMEOUT = 10.0
 _MACHINES = {"amd64": "x86_64", "x64": "x86_64", "arm64": "aarch64"}
 # as tools/build_dist.py names the archives: <system>-<machine>
 SYSTEM = (f"{'windows' if sys.platform == 'win32' else sys.platform}-"
 	f"{_MACHINES.get(platform.machine().lower(), platform.machine().lower())}")
 
-log = logging.getLogger("alpacagw.updates")
+log = logging.getLogger("brackfastgw.updates")
 _VERSION = re.compile(r"(\d+)\.(\d+)\.(\d+)(?:(a|b|rc)(\d+))?(?:\.dev(\d+))?")
 _STAGES = {"a": 0, "b": 1, "rc": 2}
 
@@ -116,7 +116,7 @@ class UpdateCheck:
 			self.checked = datetime.now(timezone.utc)
 
 	def _get(self, url: str) -> bytes:
-		request = urllib.request.Request(url, headers={"User-Agent": f"AlpacaGateway/{self.current}",
+		request = urllib.request.Request(url, headers={"User-Agent": f"BrackfastGateway/{self.current}",
 			"Accept": "application/json"})
 		with urllib.request.urlopen(request, timeout=TIMEOUT) as response:
 			return response.read(1_000_000)

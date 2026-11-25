@@ -5,9 +5,9 @@ import socket
 import aiohttp
 import pytest
 
-from alpacagw.client import Quote as AlpacaQuote, Trade
-from alpacagw.gateway.core import GatewayCore
-from alpacagw.protocol import (
+from brackfastgw.alpaca import Quote as AlpacaQuote, Trade
+from brackfastgw.gateway.core import GatewayCore
+from brackfastgw.protocol import (
 	PROTOCOL_VERSION, Bar, Bars, CancelOrder, GetBars, Hello, Order, Quote, Reply, Status, SubmitBracket, SubmitOco,
 	Subscribe, Welcome,
 	decode_gateway, encode,
@@ -131,8 +131,8 @@ async def test_forming_bar_prices_only_from_priced_trades():
 	"""Odd lots and derivatively priced trades (conditions I, 4, ...) count in the volume but set no price (as
 	Alpaca's bars); after Alpaca's bar for a minute, a late trade of it starts no forming bar again."""
 	from datetime import datetime, timezone
-	from alpacagw.client import Bar as AlpacaBar
-	from alpacagw.gateway.market import MarketRelay
+	from brackfastgw.alpaca import Bar as AlpacaBar
+	from brackfastgw.gateway.market import MarketRelay
 	alpaca = FakeAlpaca()
 	sent = []
 	relay = MarketRelay(alpaca, publish=lambda kind, symbol, msg: sent.append(msg), quote_interval=0.01,
@@ -164,8 +164,8 @@ async def test_forming_bar_filled_with_the_minutes_earlier_trades():
 	"""Subscribed mid-minute: the minute's trades before the subscription come from the trades API, so the forming
 	bar has the minute's open, high and low; a trade both fetched and streamed counts once."""
 	from datetime import datetime, timezone
-	from alpacagw.client import TradeData
-	from alpacagw.gateway.market import MarketRelay
+	from brackfastgw.alpaca import TradeData
+	from brackfastgw.gateway.market import MarketRelay
 	alpaca = FakeAlpaca()
 	t0 = datetime(2026, 11, 23, 14, 53, 0, tzinfo=timezone.utc)
 	at = lambda s: t0.replace(second=s)
@@ -199,8 +199,8 @@ async def test_forming_bar_filled_with_the_minutes_earlier_trades():
 async def test_no_fill_once_the_minute_is_over():
 	"""Alpaca's bar for the minute came before the trades did: it stays, the fetched trades are not used."""
 	from datetime import datetime, timezone
-	from alpacagw.client import Bar as AlpacaBar, TradeData
-	from alpacagw.gateway.market import MarketRelay
+	from brackfastgw.alpaca import Bar as AlpacaBar, TradeData
+	from brackfastgw.gateway.market import MarketRelay
 	alpaca = FakeAlpaca()
 	t0 = datetime(2026, 11, 23, 14, 53, 0, tzinfo=timezone.utc)
 	alpaca.data.trades["NVDA"] = [TradeData(timestamp=t0.replace(second=5), price=100.0, size=1, id=1, conditions=["@"])]
@@ -246,7 +246,7 @@ def test_stop_from_another_thread_twice():
 async def test_relay_intervals_are_independent():
 	"""Quotes every 20 ms, the forming bar every 300 ms: after 100 ms quotes went out, the bar not yet."""
 	from datetime import datetime, timezone
-	from alpacagw.gateway.market import MarketRelay
+	from brackfastgw.gateway.market import MarketRelay
 	alpaca = FakeAlpaca()
 	sent = []
 	relay = MarketRelay(alpaca, publish=lambda kind, symbol, msg: sent.append(kind), quote_interval=0.02,

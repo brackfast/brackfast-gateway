@@ -67,7 +67,7 @@ class BarCache:
 		self.enabled = enabled                      # off: history is not read from or written to the files (they can
 		                                            # still be listed and cleared)
 		self.clock = clock
-		self.log = log or logging.getLogger("alpacagw.barcache")
+		self.log = log or logging.getLogger("brackfastgw.barcache")
 		self._files: dict[str, sqlite3.Connection] = {}
 		self._lock = threading.Lock()                # one thread in SQLite at a time (the calls run in worker threads)
 		self.from_cache = 0                         # bars answered from the files / asked from the source, this run

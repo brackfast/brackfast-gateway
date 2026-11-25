@@ -57,7 +57,7 @@ class Stream:
 		self._max_backoff = max_backoff
 		self._ready_timeout = ready_timeout
 		self._heartbeat = heartbeat
-		self._log = logging.getLogger(f"alpacagw.{self.log_name}")
+		self._log = logging.getLogger(f"brackfastgw.{self.log_name}")
 		self._handlers = Handlers(self._log)
 		self._ws: aiohttp.ClientWebSocketResponse | None = None
 		self._outbox: asyncio.Queue | None = None     # per connection, written in order by _write

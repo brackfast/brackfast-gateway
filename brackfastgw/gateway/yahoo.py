@@ -238,7 +238,7 @@ class YahooRelay:
 		self.bar_interval = bar_interval
 		self.quote_interval = quote_interval
 		self.complete_delay = complete_delay
-		self.log = log or logging.getLogger("alpacagw.yahoo")
+		self.log = log or logging.getLogger("brackfastgw.yahoo")
 		self.clock = clock
 		self.connected = False
 		self._session: aiohttp.ClientSession | None = None

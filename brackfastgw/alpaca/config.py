@@ -18,7 +18,7 @@ from pathlib import Path
 
 import msgspec
 
-log = logging.getLogger("alpacagw.config")
+log = logging.getLogger("brackfastgw.alpaca.config")
 
 
 class Endpoints(msgspec.Struct, frozen=True, kw_only=True):

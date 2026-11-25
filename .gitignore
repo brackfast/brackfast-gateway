@@ -1,5 +1,5 @@
 __pycache__/
-alpacagw/_version.py
+brackfastgw/_version.py
 *.egg-info/
 .venv/
 .pytest_cache/

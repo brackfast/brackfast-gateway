@@ -12,26 +12,24 @@ Apps connect to the gateway and speak one protocol ([PROTOCOL.md](PROTOCOL.md));
 - Yahoo Finance (unofficial): market data without an account or keys.
 - A simulated account in the gateway, on either source's prices.
 
-The package and command are still called `alpacagw`; they are renamed in a later version.
-
 Status: early, paper accounts only so far.
 
 ## The gateway
 
 ```bash
 uv sync --extra ui
-uv run alpacagw                 # window; clients connect to ws://127.0.0.1:4102/ (paper)
-uv run alpacagw --live          # config.cfg is a live account: confirm with --live (also on 4102)
-uv run alpacagw --headless      # no window: config.cfg must hold the credentials
-uv run alpacagw --config other.cfg   # another account file (it must exist)
-uv run alpacagw --simulate      # a simulated account: Alpaca gives the market data only
-uv run alpacagw --yahoo         # Yahoo Finance's market data (unofficial), no account, no keys
+uv run brackfastgw                 # window; clients connect to ws://127.0.0.1:4102/ (paper)
+uv run brackfastgw --live          # config.cfg is a live account: confirm with --live (also on 4102)
+uv run brackfastgw --headless      # no window: config.cfg must hold the credentials
+uv run brackfastgw --config other.cfg   # another account file (it must exist)
+uv run brackfastgw --simulate      # a simulated account: Alpaca gives the market data only
+uv run brackfastgw --yahoo         # Yahoo Finance's market data (unofficial), no account, no keys
 ```
 
 ### Simulated account
 
 With `--simulate` (or Settings, Simulation tab, "Simulated account") no order reaches Alpaca: orders stay in the gateway
-and fill from Alpaca's quotes (`alpacagw/gateway/sim.py`). Clients see a paper account (`welcome`:
+and fill from Alpaca's quotes (`brackfastgw/gateway/sim.py`). Clients see a paper account (`welcome`:
 broker `simulated`, account `SIMULATED`) and use the same commands.
 
 - A buy fills at the ask, a sell at the bid; whole orders, no partial fills, no queue.
@@ -46,7 +44,7 @@ broker `simulated`, account `SIMULATED`) and use the same commands.
 ### Yahoo Finance
 
 With `--yahoo` (or Settings, Data source; or "Use Yahoo Finance" in the login dialog) the market data comes
-from Yahoo Finance instead of Alpaca (`alpacagw/gateway/yahoo.py`). No account and no keys are needed; the
+from Yahoo Finance instead of Alpaca (`brackfastgw/gateway/yahoo.py`). No account and no keys are needed; the
 account is the simulated one, as Yahoo has no orders.
 
 **Unofficial:** Yahoo has no public API. The gateway uses what Yahoo's web site uses (its chart endpoint and
@@ -63,7 +61,7 @@ you is sent.
 
 ### Bar cache
 
-Historical bars are kept on disk (`alpacagw/gateway/barcache.py`; Settings, "Keep historical bars on disk"),
+Historical bars are kept on disk (`brackfastgw/gateway/barcache.py`; Settings, "Keep historical bars on disk"),
 so a history request asks Alpaca only for what is missing:
 
 - One SQLite file per data source in `bar-cache/` next to the settings: `alpaca-iex.sqlite`,
@@ -102,13 +100,13 @@ What the gateway does:
 The protocol (msgpack over a websocket) is described in [PROTOCOL.md](PROTOCOL.md).
 
 The window's settings (the gear) hold the data feed, the socket port and "Allow local connections
-only" (on by default: 127.0.0.1). They are saved per environment in `%APPDATA%\alpacagw\settings.json`
+only" (on by default: 127.0.0.1). They are saved per environment in `%APPDATA%\brackfastgw\settings.json`
 and apply after a restart. `--port` and `--host` override them.
 
 Without local-only, any computer that reaches the port can trade the account: use it only in a
 network you trust.
 
-## alpacagw.client
+## brackfastgw.alpaca
 
 An asyncio client for US stocks, built on aiohttp and msgspec:
 
@@ -121,7 +119,7 @@ An asyncio client for US stocks, built on aiohttp and msgspec:
 
 ```python
 import asyncio
-from alpacagw.client import Alpaca, Bar, OrderRequest, TradeUpdate
+from brackfastgw.alpaca import Alpaca, Bar, OrderRequest, TradeUpdate
 
 async def main():
 	async with Alpaca("config.cfg") as alpaca:

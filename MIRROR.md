@@ -28,7 +28,7 @@ uv run --no-project tools/push_github_mirror.py https://github.com/brackfast/alp
 
 ## Author name in the history
 
-Origin's commits carry the author's name and email, and older versions of `LICENSE` and `alpacagw/gateway/about.py`
+Origin's commits carry the author's name and email, and older versions of `LICENSE` and `brackfastgw/gateway/about.py`
 the name in the copyright line. The mirror is rewritten on a temporary clone (origin never is): every author,
 committer and tagger becomes `Alpaca Gateway <noreply@brackfast.io>`, and the authors' names, read from the history,
 are replaced in every version of every file (full name -> "The Alpaca Gateway authors", first name -> "NAME"). No

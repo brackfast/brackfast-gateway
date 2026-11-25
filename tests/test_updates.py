@@ -1,11 +1,11 @@
 """Check for updates: the newest gateway in the website's download index against the running one."""
 import json
 
-from alpacagw.gateway import updates
+from brackfastgw.gateway import updates
 
-NAMES = ["brackfast-0.9.0-20261201-windows.zip", "alpaca-gateway-0.1.0-20261116-windows-x86_64.zip",
-	"alpaca-gateway-0.2.0-20261201-windows-x86_64.zip", "alpaca-gateway-0.2.1-20261205-linux-x86_64.tar.xz",
-	"alpaca-gateway-0.3.0b1-20261210-windows-x86_64.zip", "alpaca-gateway-0.2.0-changes.md"]
+NAMES = ["brackfast-0.9.0-20261201-windows.zip", "brackfast-gateway-0.1.0-20261116-windows-x86_64.zip",
+	"brackfast-gateway-0.2.0-20261201-windows-x86_64.zip", "brackfast-gateway-0.2.1-20261205-linux-x86_64.tar.xz",
+	"brackfast-gateway-0.3.0b1-20261210-windows-x86_64.zip", "brackfast-gateway-0.2.0-changes.md"]
 
 
 def test_version_order():

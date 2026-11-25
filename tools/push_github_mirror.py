@@ -102,7 +102,7 @@ def main() -> None:
 	if args.keep_authors and args.replace_text:
 		sys.exit("--keep-authors pushes the history unchanged: no --replace-text with it")
 	check_main()
-	with tempfile.TemporaryDirectory(prefix="alpacagw-mirror-") as tmp:
+	with tempfile.TemporaryDirectory(prefix="brackfastgw-mirror-") as tmp:
 		source = ROOT if args.keep_authors else rewritten_clone(Path(tmp), args.replace_text)
 		push = ["push", "--porcelain", *(["--dry-run"] if args.dry_run else []), args.url, *REFSPECS]
 		print("git", " ".join(push), f"(from {source})")

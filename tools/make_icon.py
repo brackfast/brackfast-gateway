@@ -2,7 +2,7 @@
 
 	uv run --no-project --with pillow tools/make_icon.py
 
--> assets/alpacagw.ico (for an exe), assets/logo-256.png, and alpacagw/gateway/icon_data.py: the window icon's
+-> assets/brackfastgw.ico (for an exe), assets/logo-256.png, and brackfastgw/gateway/icon_data.py: the window icon's
 pixels (RGBA, zlib + base64), so the running program needs neither an image file nor Pillow.
 Drawn 4x larger, then scaled down (smooth edges). Run again after changing the logo.
 """
@@ -40,7 +40,7 @@ def draw(size: int) -> Image.Image:
 def main() -> None:
 	assets = ROOT / "assets"
 	images = {n: draw(n) for n in sorted(set(ICO_SIZES + WINDOW_SIZES))}
-	images[256].save(assets / "alpacagw.ico", sizes=[(n, n) for n in ICO_SIZES],
+	images[256].save(assets / "brackfastgw.ico", sizes=[(n, n) for n in ICO_SIZES],
 		append_images=[images[n] for n in ICO_SIZES if n != 256])
 	images[256].save(assets / "logo-256.png")
 	lines = ['"""The Alpaca Gateway\'s window icon: (size, RGBA pixels zlib-compressed, base64), made by tools/make_icon.py',
@@ -52,8 +52,8 @@ def main() -> None:
 		lines += [f'\t\t"{c}"' for c in chunks]
 		lines.append("\t)),")
 	lines.append("]")
-	(ROOT / "alpacagw" / "gateway" / "icon_data.py").write_text("\n".join(lines) + "\n", encoding="utf-8")
-	print("assets/alpacagw.ico, assets/logo-256.png, alpacagw/gateway/icon_data.py")
+	(ROOT / "brackfastgw" / "gateway" / "icon_data.py").write_text("\n".join(lines) + "\n", encoding="utf-8")
+	print("assets/brackfastgw.ico, assets/logo-256.png, brackfastgw/gateway/icon_data.py")
 
 
 if __name__ == "__main__":

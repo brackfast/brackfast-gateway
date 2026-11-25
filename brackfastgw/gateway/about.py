@@ -3,7 +3,7 @@ software the gateway ships with (Python, Dear ImGui, GLFW, the fonts, the packag
 
 Dear ImGui, GLFW and the fonts are no Python distributions of their own: their texts are fixed here or taken from
 imgui_bundle's files. The packages' texts come from their metadata. The build writes the file next to the launcher
-(``python -m alpacagw.gateway.about > THIRD-PARTY-LICENSES.txt``); the About tab opens it (as Brackfast's).
+(``python -m brackfastgw.gateway.about > THIRD-PARTY-LICENSES.txt``); the About tab opens it (as Brackfast's).
 A new dependency belongs in ``LIBRARIES``.
 """
 from __future__ import annotations
@@ -171,7 +171,7 @@ def licenses_path(folder: Path | None = None) -> Path:
 	if folder is not None and (folder / LICENSES_FILE).is_file():
 		return folder / LICENSES_FILE
 	import tempfile
-	path = Path(tempfile.gettempdir()) / f"alpacagw-{LICENSES_FILE}"
+	path = Path(tempfile.gettempdir()) / f"brackfastgw-{LICENSES_FILE}"
 	path.write_text(third_party_text(), encoding="utf-8")
 	return path
 

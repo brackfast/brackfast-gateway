@@ -5,7 +5,7 @@ import msgspec
 from aiohttp import WSMsgType, web
 from aiohttp.test_utils import TestServer
 
-from alpacagw.client import Credentials, Endpoints
+from brackfastgw.alpaca import Credentials, Endpoints
 
 KEY, SECRET = "PKTEST", "secret"
 CREDENTIALS = Credentials(KEY, SECRET)
