@@ -22,9 +22,11 @@ API client, the `[alpaca]` section of config.cfg, the "Alpaca API key" field, Se
   Chartfast's connector `brackfast-gateway` with `gateway_host` / `gateway_port` (Brackfast settings version 6).
   Checked: tests of all three; a headless start with an old `alpacagw` folder took it over and listened on its port;
   Chartfast's gateway_check against it.
-- Open: step B 5 (the repo on the git server, the folder, the GitHub mirror with LICENSE / COPYRIGHT / mirror
-  identity "The Brackfast Gateway authors"); the first release with `--bridge`; the website deployed after the
-  mirror's rename (its links point to github.com/brackfast/brackfast-gateway).
+- Step B 5 done: authors / mirror identity "The Brackfast Gateway authors" (73c08ad), the repo renamed on the git
+  server (joa/brackfast-gateway), the folder `../brackfast-gateway` (path sources, venvs), the GitHub repository
+  renamed to brackfast/brackfast-gateway with the new description. The mirror's history is not yet pushed again
+  (`push_github_mirror.py ... --force`, MIRROR.md: once, after the identity change).
+- Open: that mirror push; the first release with `--bridge`; the website deployed.
 
 ## New names
 
