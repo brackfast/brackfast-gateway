@@ -586,6 +586,8 @@ class GatewayWindow:
 		imgui.end_disabled()
 		core = self.launcher.core
 		if core is not None and core.simulated:
+			if self.launcher.simulate_arg and not settings_mod.load(self._environment()).simulate:
+				imgui.text_colored(GREY, "This start is simulated by --simulate, whatever is set here.")
 			if look.button("Reset the simulated account"):
 				self._ask("Reset the simulated account?", "Its orders are canceled, its positions removed, the cash is "
 					"the starting cash again.", lambda: core.call(core.reset_simulation))
