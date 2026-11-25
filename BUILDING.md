@@ -9,7 +9,7 @@ The output is `dist/brackfast-gateway-<version>-<date>-windows-x86_64.zip` and
 `dist/brackfast-gateway-<version>-<date>-linux-x86_64.tar.xz`, about 29 MB each. Each holds one folder
 `brackfast-gateway/` that runs as it is, with nothing to install:
 
-- **The launcher:** `Brackfast Gateway.cmd` on Windows, `brackfast-gateway` on Linux.
+- **The launcher:** `brackfast-gateway.cmd` on Windows, `brackfast-gateway` on Linux.
 - **`brackfastgw/`:** the gateway as Python source. It is not compiled.
 - **`python/`:** a standalone Python 3.13 from python-build-standalone, the build uv uses. The
   libraries from `uv.lock` are in its site-packages.

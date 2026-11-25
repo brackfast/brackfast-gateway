@@ -8,7 +8,7 @@
 -> dist/brackfast-gateway-<version>-windows-x86_64.zip and dist/brackfast-gateway-<version>-linux-x86_64.tar.xz, each
 with one folder brackfast-gateway/:
 
-	Brackfast Gateway.cmd / brackfast-gateway   the launcher (double-click)
+	brackfast-gateway.cmd / brackfast-gateway   the launcher (double-click)
 	brackfastgw/                           the gateway, as Python source
 	python/                                a standalone Python (python-build-standalone, as uv's) with the
 	                                       dependencies in its site-packages (versions from uv.lock)
@@ -253,7 +253,7 @@ def build(system: str, as_dir: bool, bridge: bool = False) -> Path:
 	for doc in DOCS:
 		writer.file(doc, (ROOT / doc).read_bytes())
 	if system == "windows":
-		writer.file("Brackfast Gateway.cmd", WINDOWS_LAUNCHER.replace("\n", "\r\n").encode())
+		writer.file("brackfast-gateway.cmd", WINDOWS_LAUNCHER.replace("\n", "\r\n").encode())
 	else:
 		writer.file("brackfast-gateway", LINUX_LAUNCHER.encode(), 0o755)
 	text = readme(v)

@@ -4,11 +4,13 @@ What each version brings, for users. The build writes the section of the version
 `dist/brackfast-gateway-<version>-changes.md`, next to the archives (for the website). Add a section
 `## X.Y.Z` before tagging `vX.Y.Z`; the newest comes first.
 
-## 0.5.0
+## 0.5.1
+
+(0.5.0 was not published: its launcher had another name.)
 
 - **New name: Brackfast Gateway** (formerly the Alpaca Gateway): it is no longer for Alpaca alone (Yahoo
-  Finance, the simulated account). The folder is now brackfast-gateway, the launcher "Brackfast
-  Gateway.cmd". At its first start it takes over the Alpaca Gateway's settings, simulated account and
+  Finance, the simulated account). The folder is now brackfast-gateway, the launcher
+  brackfast-gateway.cmd. At its first start it takes over the Alpaca Gateway's settings, simulated account and
   stored bars, and, unzipped next to the old alpaca-gateway folder, its config.cfg. A taskbar pin of the
   old launcher still starts the old gateway: pin the new one.
 - **Settings:** "Check for updates at start" moved to the About tab, next to Check for updates; it is

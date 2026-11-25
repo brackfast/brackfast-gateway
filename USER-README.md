@@ -14,13 +14,13 @@ The Brackfast Gateway is the Alpaca Gateway under a new name. At its first start
 Alpaca Gateway's settings, simulated account and stored bars. Unzipped next to the old
 alpaca-gateway folder, it also copies config.cfg from there; otherwise copy config.cfg over
 yourself, or enter the keys in the window. A taskbar pin of "Alpaca Gateway.cmd" still starts
-the old one: pin "Brackfast Gateway.cmd" instead.
+the old one: pin "brackfast-gateway.cmd" instead.
 
 
 STARTING THE GATEWAY
 --------------------
 
-- Windows: double-click "Brackfast Gateway.cmd".
+- Windows: double-click "brackfast-gateway.cmd".
 - Linux: double-click brackfast-gateway, or run ./brackfast-gateway in a terminal.
 
 The first start writes config.cfg into this folder (see "Your Alpaca account" below). If config.cfg
@@ -184,7 +184,7 @@ Without a window (--headless) the log says it.
 OPTIONS
 -------
 
-Options can be added to the start, for example in a Windows shortcut to "Brackfast Gateway.cmd" or
+Options can be added to the start, for example in a Windows shortcut to "brackfast-gateway.cmd" or
 after ./brackfast-gateway on Linux:
 
     --config FILE   the account from FILE instead of config.cfg (FILE must exist)

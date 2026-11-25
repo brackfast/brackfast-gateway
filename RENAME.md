@@ -38,7 +38,7 @@ API client, the `[alpaca]` section of config.cfg, the "Alpaca API key" field, Se
 | Repo, folder | `joa/alpaca-gateway`, `../alpaca-gateway` | `joa/brackfast-gateway`, `../brackfast-gateway` |
 | GitHub mirror | github.com/brackfast/alpaca-gateway | github.com/brackfast/brackfast-gateway (renamed: GitHub redirects the old URL) |
 | Archives | `alpaca-gateway-<version>-<date>-<system>` | `brackfast-gateway-<version>-<date>-<system>` |
-| Folder in the archive, launcher | `alpaca-gateway/`, `Alpaca Gateway.cmd` / `alpaca-gateway` | `brackfast-gateway/`, `Brackfast Gateway.cmd` / `brackfast-gateway` |
+| Folder in the archive, launcher | `alpaca-gateway/`, `Alpaca Gateway.cmd` / `alpaca-gateway` | `brackfast-gateway/`, `brackfast-gateway.cmd` / `brackfast-gateway` |
 | Settings folder | `%APPDATA%\alpacagw` (`~/.config/alpacagw`) | `%APPDATA%\brackfastgw` (`~/.config/brackfastgw`) |
 | Log files | `alpacagw-<environment>.log` | `brackfastgw-<environment>.log` |
 | Windows AppUserModelID | `AlpacaGateway.AlpacaGateway` | `Brackfast.Gateway` |
