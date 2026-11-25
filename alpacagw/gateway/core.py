@@ -90,6 +90,10 @@ class Snapshot:
 		self.rest_ok = core.rest_ok
 		self.feed = core.alpaca.stock_feed
 		self.market_symbols = core.market.symbols
+		cache = core.market.cache                   # the Bar Cache tab: (data source, bytes, this gateway's source)
+		self.bar_cache_on = cache is not None and cache.enabled
+		self.bar_cache_folder = str(cache.folder) if cache is not None else ""
+		self.bar_caches = [(s, cache.size(s), s == core.market.source) for s in cache.sources()] if cache is not None else []
 		self.clients = [(c.name, c.peer, c.connected_at, len(c.quotes | c.bars)) for c in core.clients]
 		self.positions = sorted(core.positions.values(), key=lambda p: p.symbol)
 		self.orders = sorted(core.broker.orders.values(), key=lambda o: o.created_at or _now(), reverse=True)
@@ -615,12 +619,19 @@ class GatewayCore:
 		client.send(await self.market.get_bars(GetBars(request_id=cmd.request_id, symbol=cmd.symbol.upper(),
 			timeframe=cmd.timeframe, start=cmd.start, end=cmd.end, limit=cmd.limit)))
 
-	async def clear_bar_cache(self) -> None:
-		"""The bars kept on disk for this gateway's data source, removed."""
+	async def clear_bar_cache(self, source: str = "") -> None:
+		"""The bars kept on disk for a data source removed ("": every source). This gateway's own source keeps its
+		(empty) file, another source's file goes too."""
 		cache = self.market.cache
-		if cache is not None:
-			await asyncio.to_thread(cache.clear, self.market.source)
-			self.event("info", f"bar cache {self.market.source} cleared")
+		if cache is None:
+			return
+		for name in [source] if source else cache.sources():
+			try:
+				await asyncio.to_thread(lambda: cache.clear(name, remove=name != self.market.source))
+			except Exception as exc:
+				self.event("warning", f"bar cache {name} not cleared: {exc}")
+			else:
+				self.event("info", f"bar cache {name} cleared")
 
 	async def reset_simulation(self) -> None:
 		"""The simulated account as new: no orders, no positions, the starting cash."""

@@ -374,7 +374,7 @@ class GatewayWindow:
 			# before: the frame's edge now)
 			imgui.begin_child("tabs_frame", imgui.ImVec2(0, 0), imgui.ChildFlags_.borders)
 			if imgui.begin_tab_bar("tabs"):
-				for name, draw in (("Clients", self._clients), ("Log", self._log)):
+				for name, draw in (("Clients", self._clients), ("Log", self._log), ("Bar Cache", self._bar_cache)):
 					if imgui.begin_tab_item(name)[0]:
 						draw(snap)
 						imgui.end_tab_item()
@@ -586,17 +586,7 @@ class GatewayWindow:
 		if changed:
 			f["bar_cache_mb"] = max(10, min(value, 100_000))
 		imgui.end_disabled()
-		core = self.launcher.core
-		cache = core.market.cache if core is not None else None
-		if cache is not None:
-			source = core.market.source
-			imgui.text_colored(GREY, f"{source}: {cache.size(source) / 1e6:,.1f} MB")
-			if imgui.is_item_hovered():
-				imgui.set_tooltip(str(cache.file(source)))
-			imgui.same_line()
-			if imgui.small_button("Clear"):
-				self._ask("Clear the bar cache?", f"The bars kept on disk for {source} are removed; charts ask Alpaca for "
-					"their history again.", lambda: core.call(core.clear_bar_cache))
+		imgui.text_colored(GREY, "Sizes and Clear: the Bar Cache tab of the gateway's window")
 
 	def _simulation_settings(self, label) -> None:
 		"""Settings -> Gateway: the simulated account (sim.py) instead of the one at Alpaca."""
@@ -910,6 +900,49 @@ class GatewayWindow:
 			imgui.table_next_column(); imgui.text(peer)
 			imgui.table_next_column(); imgui.text(_ny(since, "%m-%d %H:%M:%S"))
 		imgui.end_table()
+
+	def _bar_cache(self, snap: Snapshot) -> None:
+		"""The bar cache's files, one per data source: its size, Clear; under them Clear All and where they are."""
+		core = self.launcher.core
+		if not snap.bar_cache_on:
+			imgui.text_colored(YELLOW, "The bar cache is off (Settings): history comes from Alpaca each time.")
+		if not snap.bar_caches:
+			imgui.text_colored(GREY, "No bars are kept on disk yet.")
+			return
+		pad = imgui.get_style().cell_padding
+		imgui.push_style_var(imgui.StyleVar_.cell_padding, imgui.ImVec2(pad.x + 6, pad.y + 2))
+		opened = imgui.begin_table("bar_caches", 3, imgui.TableFlags_.borders_inner_h | imgui.TableFlags_.row_bg
+			| imgui.TableFlags_.pad_outer_x)
+		imgui.pop_style_var()
+		if opened:
+			imgui.table_setup_column("Data source", imgui.TableColumnFlags_.width_stretch)
+			imgui.table_setup_column("Size", imgui.TableColumnFlags_.width_fixed, imgui.get_font_size() * 6)
+			imgui.table_setup_column("", imgui.TableColumnFlags_.width_fixed, imgui.get_font_size() * 4)
+			imgui.table_headers_row()
+			for source, size, in_use in snap.bar_caches:
+				imgui.table_next_row()
+				imgui.table_next_column()
+				imgui.align_text_to_frame_padding()
+				imgui.text(source)
+				if in_use:
+					imgui.same_line()
+					imgui.text_colored(GREY, "(this gateway's)")
+				imgui.table_next_column()
+				imgui.text(f"{size / 1e6:,.1f} MB")
+				imgui.table_next_column()
+				if look.button(f"Clear##{source}"):
+					self._ask(f"Clear the bar cache of {source}?", "Its bars are removed from the disk; charts ask the "
+						"data source for their history again.", lambda s=source: core.call(core.clear_bar_cache, s))
+			imgui.end_table()
+		imgui.spacing()
+		if look.button("Clear All"):
+			self._ask("Clear the whole bar cache?", "The bars of every data source are removed from the disk.",
+				lambda: core.call(core.clear_bar_cache))
+		imgui.same_line()
+		total = sum(size for _s, size, _u in snap.bar_caches)
+		imgui.text_colored(GREY, f"{total / 1e6:,.1f} MB in all")
+		if imgui.is_item_hovered():                  # the folder is too long for the window
+			imgui.set_tooltip(snap.bar_cache_folder)
 
 	def _log(self, snap: Snapshot) -> None:
 		imgui.begin_child("log")

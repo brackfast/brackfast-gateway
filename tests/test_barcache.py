@@ -174,3 +174,32 @@ async def test_through_the_gateway(tmp_path):
 		assert len(asked) == 1                               # the second answer came from the file
 		assert (tmp_path / "alpaca-iex.sqlite").is_file()
 	await core.stop()
+
+
+async def test_sources_listed_cleared_and_switched_off(tmp_path):
+	source = Source()
+	start, end = NOW - timedelta(days=4), NOW - timedelta(days=1)
+	cache = BarCache(tmp_path, clock=lambda: source.now)
+	assert cache.sources() == []
+	for name in ("alpaca-iex", "alpaca-sip", "massive"):
+		await get(cache, source, start, end, 500, name=name)
+	assert cache.sources() == ["alpaca-iex", "alpaca-sip", "massive"] and all(cache.size(s) > 0 for s in cache.sources())
+	cache.clear("massive", remove=True)                      # a source no longer used: its file goes
+	assert cache.sources() == ["alpaca-iex", "alpaca-sip"] and not list(tmp_path.glob("massive*"))
+
+	core = GatewayCore(FakeAlpaca(), bar_cache=cache)        # its own source is alpaca-iex
+	await core.clear_bar_cache("alpaca-sip")
+	assert cache.sources() == ["alpaca-iex"]
+	await core.clear_bar_cache()                             # all: its own source's file stays, empty
+	assert cache.sources() == ["alpaca-iex"]
+	source.calls.clear()
+	await get(cache, source, start, end, 500)
+	assert len(source.calls) == 1
+
+	cache.enabled = False                                    # the setting off: Alpaca is asked each time, nothing written
+	alpaca = core.alpaca
+	for _ in range(2):
+		await core.market.get_bars(GetBars(request_id=1, symbol="SPY", timeframe="1m", limit=3,
+			end=datetime(2026, 10, 27, 14, 0, tzinfo=timezone.utc)))
+	assert len(alpaca.data.requests) == 2
+	cache.close()

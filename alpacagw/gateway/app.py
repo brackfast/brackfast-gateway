@@ -143,10 +143,9 @@ def make_core(config: AlpacaConfig, host: str | None, port: int | None, simulate
 	host = host or settings.host
 	port = port or settings.port_for(config.environment)
 	feed = settings.stock_feed or config.stock_feed
-	cache = None
-	if settings.bar_cache:
-		cache = BarCache(settings_mod.bar_cache_folder(), max_mb=max(10, settings.bar_cache_mb))
-		log.info("bar cache: %s", cache.file(f"alpaca-{feed}"))
+	# always there, for the window's Bar Cache tab (sizes, Clear); the setting decides whether history uses it
+	cache = BarCache(settings_mod.bar_cache_folder(), max_mb=max(10, settings.bar_cache_mb), enabled=settings.bar_cache)
+	log.info("bar cache %s: %s", "on" if cache.enabled else "off", cache.file(f"alpaca-{feed}"))
 	simulation = None
 	if simulate or settings.simulate:
 		simulation = Simulation(file=settings_mod.simulation_file(config.environment), cash=settings.sim_cash,

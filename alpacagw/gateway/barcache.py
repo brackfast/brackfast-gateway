@@ -60,10 +60,12 @@ def _same(a: float, b: float) -> bool:
 
 
 class BarCache:
-	def __init__(self, folder: Path, *, max_mb: int = 500, clock: Callable[[], datetime] = lambda: datetime.now(timezone.utc),
+	def __init__(self, folder: Path, *, max_mb: int = 500, enabled: bool = True, clock: Callable[[], datetime] = lambda: datetime.now(timezone.utc),
 			log: logging.Logger | None = None) -> None:
 		self.folder = folder
 		self.max_mb = max_mb
+		self.enabled = enabled                      # off: history is not read from or written to the files (they can
+		                                            # still be listed and cleared)
 		self.clock = clock
 		self.log = log or logging.getLogger("alpacagw.barcache")
 		self._files: dict[str, sqlite3.Connection] = {}
@@ -75,6 +77,13 @@ class BarCache:
 
 	def file(self, source: str) -> Path:
 		return self.folder / f"{re.sub(r'[^A-Za-z0-9_.-]', '_', source)}.sqlite"
+
+	def sources(self) -> list[str]:
+		"""The data sources that have a file in the folder."""
+		try:
+			return sorted(p.stem for p in self.folder.glob("*.sqlite"))
+		except OSError:
+			return []
 
 	def size(self, source: str) -> int:
 		"""The source's file in bytes (0: none), with what SQLite has not moved into it yet (its -wal file)."""
@@ -142,15 +151,25 @@ class BarCache:
 				db.close()
 			self._files.clear()
 
-	def clear(self, source: str) -> None:
-		"""The source's cache emptied (its file stays, small)."""
+	def clear(self, source: str, *, remove: bool = False) -> None:
+		"""The source's cache emptied: its file stays, small; ``remove``: the file goes too (a source no longer
+		used; another gateway that has it open keeps an empty one)."""
 		with self._lock:
 			db = self._db(source)
 			for table in ("bars", "covered", "series"):
 				db.execute(f"delete from {table}")
 			db.commit()
 			db.execute("vacuum")
-		self.log.info("bar cache %s cleared", source)
+			if remove:
+				db.close()
+				del self._files[source]
+				file = self.file(source)
+				for path in (file, file.with_name(file.name + "-wal"), file.with_name(file.name + "-shm")):
+					try:
+						path.unlink(missing_ok=True)
+					except OSError:
+						pass
+		self.log.info("bar cache %s %s", source, "removed" if remove else "cleared")
 
 	# -- reading / writing (in a worker thread, under the lock) -----------------------
 

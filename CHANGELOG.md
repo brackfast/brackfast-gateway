@@ -8,7 +8,8 @@ What each version brings, for users. The build writes the section of the version
 
 - **Bar cache:** the gateway keeps the historical bars it has fetched on disk, one file per data feed.
   A chart opened again gets its history from there and Alpaca is asked only for the newest bars and for
-  what is missing. Settings: on / off, a size limit, Clear.
+  what is missing. Settings: on / off and a size limit; the window's new Bar Cache tab shows each data
+  feed's cache with its size, with Clear and Clear All.
 - **Simulated account:** Settings, "Simulated account" (or `--simulate`): orders stay in the gateway and
   fill from Alpaca's quotes (buys at the ask, sells at the bid), no order reaches Alpaca. Brackets, OCOs,
   replace, cancel, close and flatten work as before; the account starts with a cash amount you set, is

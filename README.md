@@ -49,6 +49,7 @@ so a history request asks Alpaca only for what is missing:
 - Alpaca's bars are split adjusted: each request to Alpaca also asks for the newest cached bar again,
   and when its prices changed (a split), the symbol's cache is dropped.
 - A file above the size in the settings (500 MB) loses what was used longest ago at the next start.
+- The window's Bar Cache tab lists the sources' files with their sizes, each with Clear, and Clear All.
 
 The gateway is built in two halves for this: the market data (`market.py`) and the broker
 (`broker.py`: `AlpacaBroker`, or `sim.SimBroker`, which knows nothing of Alpaca).

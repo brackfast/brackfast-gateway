@@ -153,7 +153,7 @@ class MarketRelay:
 		start = req.start or end - lookback(req.timeframe, limit)
 		fetch = lambda lo, hi, n: self._fetch(req.symbol, req.timeframe, lo, hi, n)
 		try:
-			if self.cache is None:
+			if self.cache is None or not self.cache.enabled:
 				rows = await fetch(start, end, limit)
 			else:
 				step = TIMEFRAMES[req.timeframe][1]  # Alpaca's intraday bars start at multiples of it (UTC)
