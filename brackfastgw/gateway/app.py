@@ -1,11 +1,11 @@
 """Start the gateway:
 
-	brackfastgw                    # window, ws://127.0.0.1:4102/ (paper)
-	brackfastgw --live             # config.cfg is a live account: needs --live (the same port, 4102)
-	brackfastgw --headless         # no window (server, service)
-	brackfastgw --simulate         # a simulated account: orders stay in the gateway, Alpaca gives the market data
-	brackfastgw --yahoo            # Yahoo Finance's market data (unofficial; no account, no keys), a simulated account
-	brackfastgw --config other.cfg # another account file than config.cfg
+	brackfast-gateway                    # window, ws://127.0.0.1:4102/ (paper)
+	brackfast-gateway --live             # config.cfg is a live account: needs --live (the same port, 4102)
+	brackfast-gateway --headless         # no window (server, service)
+	brackfast-gateway --simulate         # a simulated account: orders stay in the gateway, Alpaca gives the market data
+	brackfast-gateway --yahoo            # Yahoo Finance's market data (unofficial; no account, no keys), a simulated account
+	brackfast-gateway --config other.cfg # another account file than config.cfg
 
 The account's credentials come from config.cfg in the gateway's folder (the project folder, or the
 folder of the executable), or from the file given with --config; the gateway only reads it. Port, local-only and data feed come from the
@@ -40,7 +40,7 @@ TEMPLATE = """\
 ; Left empty, key_id / secret_key are asked for at every start (and kept in memory only).
 ; Data feed, socket port and local-only connections are in the gateway's settings (the gear).
 [alpaca]
-environment = paper        ; paper | live (live also needs: brackfastgw --live)
+environment = paper        ; paper | live (live also needs: brackfast-gateway --live)
 key_id =
 secret_key =
 """
@@ -48,7 +48,7 @@ LOG_FORMAT = "%(asctime)s.%(msecs)03d | %(name)-18s | %(levelname)-7s | %(messag
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
-	p = argparse.ArgumentParser(prog="brackfastgw", description=f"Brackfast Gateway {__version__}")
+	p = argparse.ArgumentParser(prog="brackfast-gateway", description=f"Brackfast Gateway {__version__}")
 	p.add_argument("--config", metavar="FILE", help=f"the account file (default: {CONFIG_FILE} in the gateway's folder; "
 		"a file given here must exist)")
 	p.add_argument("--live", action="store_true", help="required when the account file is a live account, refused for "

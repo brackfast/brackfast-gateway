@@ -16,7 +16,7 @@ dependencies = [
 ui = ["imgui-bundle>=1.92"]
 
 [project.scripts]
-brackfastgw = "brackfastgw.gateway.app:main"
+brackfast-gateway = "brackfastgw.gateway.app:main"
 
 [dependency-groups]
 dev = [

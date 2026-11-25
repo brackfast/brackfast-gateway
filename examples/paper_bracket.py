@@ -1,7 +1,7 @@
 """Smoke test of a running gateway with a paper account: a limit bracket far below the market
 (it cannot fill), the take profit, stop loss and entry moved, then canceled.
 
-	uv run brackfastgw --headless      # in another terminal (config.cfg with the paper keys)
+	uv run brackfast-gateway --headless     # in another terminal (config.cfg with the paper keys)
 	uv run python examples/paper_bracket.py [SYMBOL]
 
 Refuses to run against a live account.

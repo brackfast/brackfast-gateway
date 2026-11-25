@@ -18,12 +18,12 @@ Status: early, paper accounts only so far.
 
 ```bash
 uv sync --extra ui
-uv run brackfastgw                 # window; clients connect to ws://127.0.0.1:4102/ (paper)
-uv run brackfastgw --live          # config.cfg is a live account: confirm with --live (also on 4102)
-uv run brackfastgw --headless      # no window: config.cfg must hold the credentials
-uv run brackfastgw --config other.cfg   # another account file (it must exist)
-uv run brackfastgw --simulate      # a simulated account: Alpaca gives the market data only
-uv run brackfastgw --yahoo         # Yahoo Finance's market data (unofficial), no account, no keys
+uv run brackfast-gateway                 # window; clients connect to ws://127.0.0.1:4102/ (paper)
+uv run brackfast-gateway --live          # config.cfg is a live account: confirm with --live (also on 4102)
+uv run brackfast-gateway --headless      # no window: config.cfg must hold the credentials
+uv run brackfast-gateway --config other.cfg   # another account file (it must exist)
+uv run brackfast-gateway --simulate      # a simulated account: Alpaca gives the market data only
+uv run brackfast-gateway --yahoo         # Yahoo Finance's market data (unofficial), no account, no keys
 ```
 
 ### Simulated account
