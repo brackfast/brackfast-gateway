@@ -9,6 +9,7 @@ the gateway does not depend on Brackfast). Applied after hello_imgui's theme (so
 - Controls 20 px high: 3 px above and below the 14 px text (the theme: 2, 18 px).
 - 4 px between controls, side by side and one above the other (the theme: 6).
 - Buttons lighter while hovered / pressed (the theme's hover grey is the dialogs' background: they vanished).
+- The selected tab lighter, and with it the line under the tab bar (the theme's could hardly be seen).
 """
 from __future__ import annotations
 
@@ -19,6 +20,7 @@ FRAME_PAD_Y = 3.0                   # px above and below a control's text: 20 px
 ITEM_GAP = 4.0                      # px between controls, side by side and one above the other
 BUTTON_HOVERED = imgui.ImVec4(0.38, 0.38, 0.38, 0.70)   # lighter than the button (0.30 at 0.62) on any background
 BUTTON_ACTIVE = imgui.ImVec4(0.44, 0.44, 0.44, 0.75)    # pressed: lighter still
+TAB_SELECTED = imgui.ImVec4(0.32, 0.32, 0.32, 1.0)      # the selected tab and the line under the tabs
 
 
 def apply(style: imgui.Style | None = None) -> None:
@@ -33,6 +35,9 @@ def apply(style: imgui.Style | None = None) -> None:
 	# background, so a flat button vanished under the mouse there
 	style.set_color_(imgui.Col_.button_hovered, BUTTON_HOVERED)
 	style.set_color_(imgui.Col_.button_active, BUTTON_ACTIVE)
+	# the selected tab, and the line under the tab bar imgui draws in its color, lighter: the theme's (0.20) was
+	# about the frame's own background, the line could hardly be seen and the tabs looked as if in the air
+	style.set_color_(imgui.Col_.tab_selected, TAB_SELECTED)
 
 
 def button(label: str, size: imgui.ImVec2 | None = None) -> bool:
