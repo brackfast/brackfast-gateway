@@ -82,13 +82,14 @@ class Snapshot:
 	"""What the window shows, rebuilt on the event loop (``GatewayCore.snapshot``)."""
 
 	def __init__(self, core: GatewayCore) -> None:
-		self.environment = core.alpaca.environment      # of the keys (the market data); the account's: simulated
+		self.environment = core.environment         # of Alpaca's keys; the account may be simulated all the same
+		self.provider = core.market.provider        # where the market data comes from: "Alpaca", "Yahoo Finance"
 		self.simulated = core.simulated
 		self.address = f"ws://{core.host}:{core.port}/"
 		self.status = core.status
 		self.account = core.account
 		self.rest_ok = core.rest_ok
-		self.feed = core.alpaca.stock_feed
+		self.feed = core.market.feed
 		self.market_symbols = core.market.symbols
 		cache = core.market.cache                   # the Bar Cache tab: (data source, bytes, this gateway's source)
 		self.bar_cache_on = cache is not None and cache.enabled
@@ -101,10 +102,14 @@ class Snapshot:
 
 
 class GatewayCore:
-	def __init__(self, alpaca: Alpaca, *, host: str = "127.0.0.1", port: int = 4102,
+	def __init__(self, alpaca: Alpaca | None = None, *, host: str = "127.0.0.1", port: int = 4102,
 			refresh: float = 5.0, order_poll: float = 1.0, quote_interval: float = 0.1, bar_interval: float = 0.25,
-			simulation: Simulation | None = None, bar_cache: BarCache | None = None,
+			simulation: Simulation | None = None, bar_cache: BarCache | None = None, market: Any = None,
 			log: logging.Logger | None = None) -> None:
+		"""``alpaca``: the account and the market data at Alpaca. ``market`` instead: another data source (an object
+		with ``MarketRelay``'s methods, e.g. ``yahoo.YahooRelay``); it has no account, so the account is simulated."""
+		if (alpaca is None) == (market is None):
+			raise ValueError("either alpaca or market")
 		self.alpaca = alpaca
 		self.host = host
 		self.port = port
@@ -117,9 +122,16 @@ class GatewayCore:
 		self.positions: dict[str, Position] = {}
 		self.events: deque[Event] = deque(maxlen=2000)
 		self.clients: list[Client] = []
-		self.market = MarketRelay(alpaca, publish=self._publish_market, quote_interval=quote_interval,
-			bar_interval=bar_interval, cache=bar_cache)
-		self.simulated = simulation is not None     # orders stay in the gateway (sim.py), Alpaca gives the data only
+		if market is None:
+			market = MarketRelay(alpaca, publish=self._publish_market, quote_interval=quote_interval,
+				bar_interval=bar_interval, cache=bar_cache)
+		else:
+			market.publish = self._publish_market
+			simulation = simulation or Simulation()
+		market.on_state = self._stream_state      # its stream connected / disconnected
+		self.market = market
+		self.environment = alpaca.environment if alpaca is not None else "paper"
+		self.simulated = simulation is not None     # orders stay in the gateway (sim.py), the source gives the data only
 		self.broker: Broker
 		if simulation is not None:
 			self.broker = SimBroker(self.market, on_order=self._on_order, on_fill=self._on_fill, file=simulation.file,
@@ -144,9 +156,7 @@ class GatewayCore:
 		self._runner = web.AppRunner(app, access_log=None)
 		await self._runner.setup()
 		await web.TCPSite(self._runner, self.host, self.port).start()
-		self.event("info", f"gateway {__version__} listening on ws://{self.host}:{self.port}/ ({'simulated' if self.simulated else self.alpaca.environment} account)")
-		self.alpaca.stocks.on_ready(lambda _m: self._stream_state())
-		self.alpaca.stocks.on_disconnected(lambda _m: self._stream_state())
+		self.event("info", f"gateway {__version__} listening on ws://{self.host}:{self.port}/ ({'simulated' if self.simulated else self.environment} account, {self.market.provider} data)")
 		try:
 			if self.simulated:
 				await self.market.check()            # the keys: wrong ones fail the start, as with the account
@@ -171,7 +181,8 @@ class GatewayCore:
 			await self._runner.cleanup()
 		await self.broker.close()
 		await self.market.stop()
-		await self.alpaca.close()
+		if self.alpaca is not None:
+			await self.alpaca.close()
 		self._stopped.set()
 
 	async def run(self) -> None:

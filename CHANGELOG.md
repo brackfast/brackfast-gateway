@@ -6,6 +6,10 @@ What each version brings, for users. The build writes the section of the version
 
 ## Next
 
+- **Yahoo Finance as the data source (unofficial):** market data without an account or keys: "Use Yahoo
+  Finance" in the login dialog, Settings "Data source", or `--yahoo`. History (1m for 30 days, up to 1h
+  for 60 days, daily and longer for years) and live prices, with the simulated account. Yahoo has no
+  public API: it can stop working at any time, and its terms of use apply.
 - **Bar cache:** the gateway keeps the historical bars it has fetched on disk, one file per data feed.
   A chart opened again gets its history from there and Alpaca is asked only for the newest bars and for
   what is missing. Settings: on / off and a size limit; the window's new Bar Cache tab shows each data

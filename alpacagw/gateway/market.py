@@ -91,13 +91,17 @@ def _minute(ts: datetime) -> datetime:
 
 
 class MarketRelay:
+	provider = "Alpaca"
+
 	def __init__(self, alpaca: Any, *, publish: Callable[[str, str, Any], None], log: logging.Logger | None = None,
 			bar_interval: float = 0.25, quote_interval: float = 0.1, fill_delay: float = FILL_DELAY,
 			clock: Callable[[], datetime] = lambda: datetime.now(timezone.utc), cache: BarCache | None = None) -> None:
 		self.alpaca = alpaca
 		self.cache = cache                        # historical bars kept on disk; None: every request goes to Alpaca
 		# the data source's name: the cache's file. Each feed has its own (their bars differ)
-		self.source = f"alpaca-{getattr(alpaca, 'stock_feed', '') or 'iex'}"
+		self.feed = getattr(alpaca, "stock_feed", "") or "iex"
+		self.source = f"alpaca-{self.feed}"
+		self.on_state: Callable[[], None] = lambda: None     # the stream connected / disconnected (the gateway sets it)
 		self.publish = publish                    # (kind "bar" / "quote", symbol, message)
 		self.log = log or logging.getLogger("alpacagw.market")
 		self.bar_interval = bar_interval
@@ -119,6 +123,8 @@ class MarketRelay:
 		stocks.on(AlpacaQuote, self._on_quote)
 		stocks.on(AlpacaBar, self._on_bar)
 		stocks.on(UpdatedBar, self._on_bar)
+		stocks.on_ready(lambda _m: self.on_state())
+		stocks.on_disconnected(lambda _m: self.on_state())
 
 	@property
 	def connected(self) -> bool:

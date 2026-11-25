@@ -17,6 +17,7 @@ from typing import Any
 from zoneinfo import ZoneInfo
 
 import imgui_bundle
+import msgspec
 from imgui_bundle import hello_imgui, imgui, immapp
 
 from ..client.config import FEEDS, Credentials
@@ -449,6 +450,7 @@ class GatewayWindow:
 			"quote_interval_ms": s.quote_interval_ms,
 			"bar_interval_ms": s.bar_interval_ms,
 			"check_updates": s.check_updates,
+			"data_source": s.data_source if s.data_source in settings_mod.SOURCES else "alpaca",
 			"bar_cache": s.bar_cache,
 			"bar_cache_mb": s.bar_cache_mb,
 			"simulate": s.simulate,
@@ -491,7 +493,7 @@ class GatewayWindow:
 			s = settings_mod.GatewaySettings(stock_feed=f["stock_feed"], port=f["port"], local_only=f["local_only"],
 				quote_interval_ms=f["quote_interval_ms"], bar_interval_ms=f["bar_interval_ms"],
 				check_updates=f.get("check_updates", True), simulate=f["simulate"], sim_cash=f["sim_cash"],
-				bar_cache=f["bar_cache"], bar_cache_mb=f["bar_cache_mb"],
+				bar_cache=f["bar_cache"], bar_cache_mb=f["bar_cache_mb"], data_source=f["data_source"],
 				sim_all_hours=f["sim_all_hours"])
 			try:
 				settings_mod.save(self._environment(), s)
@@ -526,7 +528,7 @@ class GatewayWindow:
 		imgui.spacing()
 		# the fields' column: after the widest label, from where the pane's content starts (its padding)
 		label_w = (imgui.get_cursor_pos_x() + max(imgui.calc_text_size(t).x for t in ("Data feed", "Socket Port",
-			"Quotes", "Forming bar", "Starting cash", "At most")) + 2 * imgui.get_style().item_spacing.x)
+			"Quotes", "Forming bar", "Starting cash", "At most", "Data source")) + 2 * imgui.get_style().item_spacing.x)
 		field_w = imgui.get_font_size() * 16
 
 		def label(text: str) -> None:
@@ -535,12 +537,25 @@ class GatewayWindow:
 			imgui.same_line(label_w)
 			imgui.set_next_item_width(field_w)
 
+		label("Data source")
+		sources = list(settings_mod.SOURCES)
+		changed, i = imgui.combo("##data_source", sources.index(f["data_source"]), list(settings_mod.SOURCES.values()))
+		if changed:
+			f["data_source"] = sources[i]
+		yahoo = f["data_source"] == "yahoo"
+		if yahoo:
+			imgui.push_text_wrap_pos(label_w + field_w)
+			imgui.text_colored(GREY, "No account and no keys: prices as on Yahoo's web site, the account is simulated. "
+				"Yahoo offers no API for this: it can stop working at any time.")
+			imgui.pop_text_wrap_pos()
+		imgui.begin_disabled(yahoo)                  # Alpaca's feeds
 		label("Data feed")
 		feeds = list(FEEDS)
 		changed, i = imgui.combo("##stock_feed", feeds.index(f["stock_feed"]) if f["stock_feed"] in feeds else 0, feeds)
 		if changed:
 			f["stock_feed"] = feeds[i]
 		imgui.text_colored(GREY, "iex: free  |  sip: all exchanges (paid)  |  delayed_sip: 15 min")
+		imgui.end_disabled()
 		label("Socket Port")
 		changed, port = imgui.input_int("##port", f["port"], 0, 0)
 		if changed:
@@ -607,7 +622,9 @@ class GatewayWindow:
 		imgui.end_disabled()
 		core = self.launcher.core
 		if core is not None and core.simulated:
-			if self.launcher.simulate_arg and not settings_mod.load(self._environment()).simulate:
+			if core.alpaca is None:
+				imgui.text_colored(GREY, f"{core.market.provider} has no account: always simulated.")
+			elif self.launcher.simulate_arg and not settings_mod.load(self._environment()).simulate:
 				imgui.text_colored(GREY, "This start is simulated by --simulate, whatever is set here.")
 			if look.button("Reset the simulated account"):
 				self._ask("Reset the simulated account?", "Its orders are canceled, its positions removed, the cash is "
@@ -659,7 +676,7 @@ class GatewayWindow:
 		settings = settings_mod.load(env)
 		host = launcher.host_arg or settings.host
 		port = launcher.port_arg or settings.port_for(env)
-		return SimpleNamespace(environment=env, simulated=settings.simulate or launcher.simulate_arg, account=None, rest_ok=False, market_symbols=0, clients=[],
+		return SimpleNamespace(environment=env, provider="Alpaca", simulated=settings.simulate or launcher.simulate_arg, account=None, rest_ok=False, market_symbols=0, clients=[],
 			feed=settings.stock_feed or launcher.config.stock_feed, address=f"ws://{host}:{port}/",
 			status=Status(state="not logged in"))
 
@@ -727,8 +744,26 @@ class GatewayWindow:
 		imgui.pop_text_wrap_pos()
 		if imgui.is_item_hovered():
 			imgui.set_tooltip(str(self.launcher.config.path))
+		imgui.spacing()
+		imgui.separator()
+		imgui.push_text_wrap_pos(width)
+		imgui.text_colored(GREY, "Without an Alpaca account: Yahoo Finance's prices (unofficial) and a simulated account.")
+		imgui.pop_text_wrap_pos()
+		if look.button("Use Yahoo Finance", imgui.ImVec2(width * 0.5, 0)):
+			self._use_yahoo()
+			imgui.close_current_popup()
 		self._settings_popup()                   # opened from here: nested in this dialog
 		imgui.end_popup()
+
+	def _use_yahoo(self) -> None:
+		"""From the login dialog: Yahoo Finance as the data source, from now on (the setting), started at once."""
+		env = self.login_env
+		try:
+			settings_mod.save(env, msgspec.structs.replace(settings_mod.load(env), data_source="yahoo"))
+		except OSError as exc:
+			log.warning("data source not saved: %s", exc)
+		self.login_error = ""
+		self.launcher.start(environment=env, source="yahoo")
 
 	def _switch(self, live: bool) -> bool:
 		"""Paper | Live as a sliding switch; returns the new state."""
@@ -781,7 +816,8 @@ class GatewayWindow:
 		# paper / live as a bar across the window, the account in it
 		live = snap.environment == "live"
 		if snap.simulated:                       # no order reaches Alpaca: never the live red
-			live, text = False, f"SIMULATED ACCOUNT   ({snap.environment} keys for the market data)"
+			data = f"{snap.environment} keys for the market data" if snap.provider == "Alpaca" else f"{snap.provider} data"
+			live, text = False, f"SIMULATED ACCOUNT   ({data})"
 		else:
 			text = f"{'LIVE' if live else 'PAPER'} ACCOUNT"
 			if snap.account is not None:

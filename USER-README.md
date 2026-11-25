@@ -106,6 +106,26 @@ The settings are stored in:
 They hold no API keys.
 
 
+YAHOO FINANCE
+-------------
+
+The gateway can take its market data from Yahoo Finance instead of Alpaca. You need no account and
+no keys: click "Use Yahoo Finance" in the login dialog, or choose it in Settings, "Data source"
+(then restart the gateway). The account is then the simulated one (see SIMULATED ACCOUNT), as
+Yahoo has no orders.
+
+    - It is unofficial. Yahoo offers no interface for programs; the gateway reads what Yahoo's
+      web site reads. Yahoo can change or block this at any time, and Yahoo's terms of use apply
+      to you. Nothing about you is sent.
+    - History: 1-minute bars for the last 30 days, 2 minutes to 1 hour for the last 60 days,
+      daily, weekly and monthly bars for many years.
+    - Live prices are Yahoo's last price. Yahoo sends no bid and ask, so both show that price and
+      simulated orders fill at it, without a spread.
+    - Between 20:00 and 04:00 New York the price moves (overnight trading) but no bars are drawn.
+
+To go back to Alpaca: Settings, "Data source", Alpaca, then restart.
+
+
 BAR CACHE
 ---------
 
@@ -159,6 +179,7 @@ after ./alpaca-gateway on Linux:
     --live          start with the live account of config.cfg (or of FILE)
     --headless      no window (config.cfg or FILE must then hold the keys)
     --simulate      a simulated account for this start (see SIMULATED ACCOUNT)
+    --yahoo         Yahoo Finance's market data for this start (see YAHOO FINANCE)
     --port PORT     the port for this start, instead of the setting
     --host ADDRESS  the network address to listen on, instead of the setting
 

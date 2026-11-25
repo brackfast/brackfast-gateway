@@ -19,6 +19,7 @@ uv run alpacagw --live          # config.cfg is a live account: confirm with --l
 uv run alpacagw --headless      # no window: config.cfg must hold the credentials
 uv run alpacagw --config other.cfg   # another account file (it must exist)
 uv run alpacagw --simulate      # a simulated account: Alpaca gives the market data only
+uv run alpacagw --yahoo         # Yahoo Finance's market data (unofficial), no account, no keys
 ```
 
 ### Simulated account
@@ -36,6 +37,24 @@ broker `simulated`, account `SIMULATED`) and use the same commands.
 - No margin rules, fees or buying power check. The account (cash, positions, working orders) is kept
   in `simulated-account-<environment>.json` next to the settings; Settings has a reset.
 
+### Yahoo Finance
+
+With `--yahoo` (or Settings, Data source; or "Use Yahoo Finance" in the login dialog) the market data comes
+from Yahoo Finance instead of Alpaca (`alpacagw/gateway/yahoo.py`). No account and no keys are needed; the
+account is the simulated one, as Yahoo has no orders.
+
+**Unofficial:** Yahoo has no public API. The gateway uses what Yahoo's web site uses (its chart endpoint and
+its price stream); Yahoo can change or block that at any time, and its terms of use apply to you. Nothing about
+you is sent.
+
+- History: 1m bars for the last 30 days, 2m to 1h for the last 60 days, daily, weekly and monthly as far
+  back as there is; extended hours included, prices split adjusted. Through the bar cache (`yahoo.sqlite`).
+- Live: each symbol's last price, sent as a quote with that price as bid and ask (Yahoo sends no bid / ask),
+  and as the forming 1m bar; after each minute Yahoo's own bar of that minute replaces it.
+- Simulated fills are therefore at the last price, without a spread.
+- Overnight prices (20:00 to 04:00 New York) are quotes only, there are no bars for them.
+- US stocks and ETFs by their ticker (`BRK.B` is asked as Yahoo's `BRK-B`).
+
 ### Bar cache
 
 Historical bars are kept on disk (`alpacagw/gateway/barcache.py`; Settings, "Keep historical bars on disk"),
@@ -51,8 +70,9 @@ so a history request asks Alpaca only for what is missing:
 - A file above the size in the settings (500 MB) loses what was used longest ago at the next start.
 - The window's Bar Cache tab lists the sources' files with their sizes, each with Clear, and Clear All.
 
-The gateway is built in two halves for this: the market data (`market.py`) and the broker
-(`broker.py`: `AlpacaBroker`, or `sim.SimBroker`, which knows nothing of Alpaca).
+The gateway is built in two halves for this: the market data (`market.py` for Alpaca, `yahoo.py`
+for Yahoo Finance) and the broker (`broker.py`: `AlpacaBroker`, or `sim.SimBroker`, which knows nothing
+of Alpaca).
 
 The account comes from `config.cfg` in the gateway's folder: the project folder, or the folder of
 the executable. If the file is missing, the gateway writes a template there. The gateway only reads

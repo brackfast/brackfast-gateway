@@ -18,7 +18,12 @@ from ..protocol import PORT
 log = logging.getLogger("alpacagw.settings")
 
 
+SOURCES = {"alpaca": "Alpaca", "yahoo": "Yahoo Finance (unofficial)"}     # data_source -> its name in the window
+
+
 class GatewaySettings(msgspec.Struct, kw_only=True):
+	data_source: str = "alpaca"              # where the market data comes from: "alpaca" (with its account) | "yahoo"
+	                                         # (yahoo.py: no account, no keys; the account is simulated)
 	stock_feed: str = ""                     # "" = the account config's stock_feed
 	port: int = 0                            # 0 = the default port (4102, paper and live)
 	local_only: bool = True                  # listen on 127.0.0.1 only, else on all interfaces
