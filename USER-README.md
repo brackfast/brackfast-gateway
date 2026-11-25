@@ -106,6 +106,25 @@ The settings are stored in:
 They hold no API keys.
 
 
+SIMULATED ACCOUNT
+-----------------
+
+Settings, "Simulated account" (then restart the gateway): orders no longer go to Alpaca. They stay
+in the gateway and fill from Alpaca's quotes; your Alpaca keys are used for the market data only.
+The account bar says SIMULATED ACCOUNT, and trading apps see a paper account named SIMULATED.
+
+    - A buy fills at the ask, a sell at the bid, always the whole order.
+    - A limit order fills at its limit once the price reaches it, a stop at the price once it
+      passes the stop.
+    - Fills happen from 09:30 to 16:00 New York, as at the exchange. "Fill outside regular hours"
+      fills whenever there is a price, also at night with the last price of the closed market.
+    - The account starts with the "Starting cash" and is kept across restarts. "Reset the
+      simulated account" in the settings makes it new.
+
+It is for trying things out and for testing apps. Real fills are worse than simulated ones: there
+is no queue, no partial fill, and no fee, margin or buying power rule.
+
+
 UPDATES
 -------
 
@@ -124,6 +143,7 @@ after ./alpaca-gateway on Linux:
     --config FILE   the account from FILE instead of config.cfg (FILE must exist)
     --live          start with the live account of config.cfg (or of FILE)
     --headless      no window (config.cfg or FILE must then hold the keys)
+    --simulate      a simulated account for this start (see SIMULATED ACCOUNT)
     --port PORT     the port for this start, instead of the setting
     --host ADDRESS  the network address to listen on, instead of the setting
 

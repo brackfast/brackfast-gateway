@@ -18,7 +18,26 @@ uv run alpacagw                 # window; clients connect to ws://127.0.0.1:4102
 uv run alpacagw --live          # config.cfg is a live account: confirm with --live (also on 4102)
 uv run alpacagw --headless      # no window: config.cfg must hold the credentials
 uv run alpacagw --config other.cfg   # another account file (it must exist)
+uv run alpacagw --simulate      # a simulated account: Alpaca gives the market data only
 ```
+
+### Simulated account
+
+With `--simulate` (or Settings, Simulated account) no order reaches Alpaca: orders stay in the gateway
+and fill from Alpaca's quotes (`alpacagw/gateway/sim.py`). Clients see a paper account (`welcome`:
+broker `simulated`, account `SIMULATED`) and use the same commands.
+
+- A buy fills at the ask, a sell at the bid; whole orders, no partial fills, no queue.
+- Limit orders fill at their limit once the quote reaches it, stops at the quote once it passes them.
+- Regular hours only (09:30 to 16:00 New York; limit orders with extended hours 04:00 to 20:00), unless
+  "Fill outside regular hours" is set: then whenever there is a quote, also a closed market's last price.
+- Brackets, OCOs, replace, cancel, close position and flatten work as at Alpaca; an OCO needs the
+  position's shares.
+- No margin rules, fees or buying power check. The account (cash, positions, working orders) is kept
+  in `simulated-account-<environment>.json` next to the settings; Settings has a reset.
+
+The gateway is built in two halves for this: the market data (`market.py`) and the broker
+(`broker.py`: `AlpacaBroker`, or `sim.SimBroker`, which knows nothing of Alpaca).
 
 The account comes from `config.cfg` in the gateway's folder: the project folder, or the folder of
 the executable. If the file is missing, the gateway writes a template there. The gateway only reads

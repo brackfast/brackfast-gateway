@@ -3,6 +3,7 @@
 	alpacagw                    # window, ws://127.0.0.1:4102/ (paper)
 	alpacagw --live             # config.cfg is a live account: needs --live (the same port, 4102)
 	alpacagw --headless         # no window (server, service)
+	alpacagw --simulate         # a simulated account: orders stay in the gateway, Alpaca gives the market data
 	alpacagw --config other.cfg # another account file than config.cfg
 
 The account's credentials come from config.cfg in the gateway's folder (the project folder, or the
@@ -27,6 +28,7 @@ from ..client import Alpaca, AlpacaConfig, Credentials, load_config
 from ..protocol import PORT
 from . import redact, settings as settings_mod, updates as updates_mod
 from .core import GatewayCore
+from .sim import Simulation
 
 CONFIG_FILE = "config.cfg"
 TEMPLATE = """\
@@ -50,6 +52,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 	p.add_argument("--host", help="interface to listen on (default from the settings: 127.0.0.1, this machine only)")
 	p.add_argument("--port", type=int, help=f"default from the settings, else {PORT} (paper and live)")
 	p.add_argument("--headless", action="store_true", help="no window")
+	p.add_argument("--simulate", action="store_true", help="a simulated account: orders stay in the gateway and fill "
+		"from Alpaca's quotes (also a setting)")
 	p.add_argument("--log", default="", help="log file (default: alpacagw-<environment>.log)")
 	return p.parse_args(argv)
 
@@ -84,9 +88,9 @@ class Launcher:
 	paper or live. Port, local-only and data feed come from that environment's settings; --host /
 	--port override them."""
 
-	def __init__(self, config: AlpacaConfig, *, host: str | None, port: int | None) -> None:
+	def __init__(self, config: AlpacaConfig, *, host: str | None, port: int | None, simulate: bool = False) -> None:
 		self.config = config
-		self.host_arg, self.port_arg = host, port
+		self.host_arg, self.port_arg, self.simulate_arg = host, port, simulate
 		self.environment = config.environment       # the one running (or to start)
 		self.core: GatewayCore | None = None
 		self.thread: threading.Thread | None = None
@@ -97,7 +101,7 @@ class Launcher:
 		self.environment = environment or self.config.environment
 		config = msgspec.structs.replace(self.config, environment=self.environment,
 			credentials=credentials or self.config.credentials)
-		self.core = core = make_core(config, self.host_arg, self.port_arg)
+		self.core = core = make_core(config, self.host_arg, self.port_arg, self.simulate_arg)
 		self.error, self.was_ready = None, False
 
 		def serve() -> None:
@@ -128,9 +132,9 @@ class Launcher:
 			self.thread.join(timeout=10)
 
 
-def make_core(config: AlpacaConfig, host: str | None, port: int | None) -> GatewayCore:
+def make_core(config: AlpacaConfig, host: str | None, port: int | None, simulate: bool = False) -> GatewayCore:
 	"""The gateway for an account: host, port and data feed from its environment's settings, unless
-	given on the command line."""
+	given on the command line. ``simulate`` (or the setting): a simulated account, kept next to the settings."""
 	log = logging.getLogger("alpacagw")
 	if config.credentials is not None:
 		redact.credentials(config.credentials.key_id, config.credentials.secret_key)
@@ -138,11 +142,16 @@ def make_core(config: AlpacaConfig, host: str | None, port: int | None) -> Gatew
 	host = host or settings.host
 	port = port or settings.port_for(config.environment)
 	feed = settings.stock_feed or config.stock_feed
-	log.info("alpacagw %s, %s account, %s data, ws://%s:%d/, quotes every %d ms, forming bars every %d ms",
+	simulation = None
+	if simulate or settings.simulate:
+		simulation = Simulation(file=settings_mod.simulation_file(config.environment), cash=settings.sim_cash,
+			all_hours=settings.sim_all_hours)
+		log.info("simulated account (%s): no order reaches Alpaca", simulation.file)
+	log.info("alpacagw %s, %s keys, %s data, ws://%s:%d/, quotes every %d ms, forming bars every %d ms",
 		__version__, config.environment, feed, host, port, settings.quote_interval_ms, settings.bar_interval_ms)
 	if host not in ("127.0.0.1", "localhost", "::1"):
 		log.warning("listening on %s: every computer that reaches port %d can trade this account", host, port)
-	return GatewayCore(Alpaca(config, stock_feed=feed), host=host, port=port,
+	return GatewayCore(Alpaca(config, stock_feed=feed), host=host, port=port, simulation=simulation,
 		quote_interval=max(10, settings.quote_interval_ms) / 1000, bar_interval=max(10, settings.bar_interval_ms) / 1000)
 
 
@@ -187,14 +196,14 @@ def main(argv: list[str] | None = None) -> int:
 			print(f"alpacagw: no credentials in {cfg}: fill in key_id and secret_key (headless, nobody to ask)",
 				file=sys.stderr)
 			return 2
-		return _run_headless(make_core(config, args.host, args.port))
+		return _run_headless(make_core(config, args.host, args.port, args.simulate))
 
 	try:
 		from .window import GatewayWindow
 	except ImportError:
 		print("alpacagw: the window needs imgui-bundle (pip install alpacagw[ui]); or use --headless", file=sys.stderr)
 		return 2
-	launcher = Launcher(config, host=args.host, port=args.port)
+	launcher = Launcher(config, host=args.host, port=args.port, simulate=args.simulate)
 	if config.credentials is not None:
 		launcher.start()                         # else the window asks for them first
 	GatewayWindow(launcher, update_check).run()

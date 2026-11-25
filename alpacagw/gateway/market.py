@@ -31,6 +31,7 @@ TIMEFRAMES = {
 }
 
 MAX_BARS = 50_000
+WIDE = 0.01                      # latest_quote: a spread above 1 % of the price is no market
 
 
 def lookback(timeframe: str, limit: int) -> timedelta:
@@ -170,7 +171,25 @@ class MarketRelay:
 				return ""
 		return self._names[symbol]
 
-	# -- subscriptions (reference counted over all clients) --------------------------
+	async def latest_quote(self, symbol: str) -> Quote | None:
+		"""The newest quote, asked from Alpaca (the stream sends one only when it changes); None: there is none."""
+		q = (await self.alpaca.data.get_latest_quotes(symbol)).get(symbol)
+		if q is None:
+			return None
+		if not (q.bid_price > 0 and q.ask_price > 0) or q.ask_price - q.bid_price > WIDE * q.ask_price:
+			# no real market in it (a closed market's last quote: SPY 693.63 / 736.61 on IEX, 2026-11-25 at night):
+			# the last trade's price as bid and ask
+			t = (await self.alpaca.data.get_latest_trades(symbol)).get(symbol)
+			if t is not None:
+				return Quote(symbol=symbol, ts=t.timestamp, bid=t.price, bid_size=0.0, ask=t.price, ask_size=0.0)
+		return Quote(symbol=symbol, ts=q.timestamp, bid=q.bid_price, bid_size=q.bid_size, ask=q.ask_price,
+			ask_size=q.ask_size)
+
+	async def check(self) -> None:
+		"""The keys work (raises otherwise): asked when no account at Alpaca is used, which would show it."""
+		await self.alpaca.trading.get_account()
+
+	# -- subscriptions (reference counted over all clients and the simulated account) --------------------------
 
 	def add(self, symbols: list[str], *, quotes: bool, bars: bool) -> None:
 		stocks = self.alpaca.stocks

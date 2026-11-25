@@ -24,9 +24,9 @@ from ..protocol import (
 	Message, Order, Position, ReplaceOrder, Reply, Status, SubmitBracket, SubmitOco, SubmitOrder, Subscribe,
 	Unsubscribe, Welcome, decode_client, encode,
 )
-from . import redact
+from .broker import AlpacaBroker, Broker
 from .market import MarketRelay
-from .orders import OrderTracker
+from .sim import SimBroker, Simulation
 
 SYMBOL_RE = re.compile(r"^[A-Z][A-Z0-9.]{0,9}$")
 ID_RE = re.compile(r"^[A-Za-z0-9_\-:.]{1,48}$")
@@ -81,7 +81,8 @@ class Snapshot:
 	"""What the window shows, rebuilt on the event loop (``GatewayCore.snapshot``)."""
 
 	def __init__(self, core: GatewayCore) -> None:
-		self.environment = core.alpaca.environment
+		self.environment = core.alpaca.environment      # of the keys (the market data); the account's: simulated
+		self.simulated = core.simulated
 		self.address = f"ws://{core.host}:{core.port}/"
 		self.status = core.status
 		self.account = core.account
@@ -90,14 +91,14 @@ class Snapshot:
 		self.market_symbols = core.market.symbols
 		self.clients = [(c.name, c.peer, c.connected_at, len(c.quotes | c.bars)) for c in core.clients]
 		self.positions = sorted(core.positions.values(), key=lambda p: p.symbol)
-		self.orders = sorted(core.tracker.orders.values(), key=lambda o: o.created_at or _now(), reverse=True)
+		self.orders = sorted(core.broker.orders.values(), key=lambda o: o.created_at or _now(), reverse=True)
 		self.events = list(core.events)
 
 
 class GatewayCore:
 	def __init__(self, alpaca: Alpaca, *, host: str = "127.0.0.1", port: int = 4102,
 			refresh: float = 5.0, order_poll: float = 1.0, quote_interval: float = 0.1, bar_interval: float = 0.25,
-			log: logging.Logger | None = None) -> None:
+			simulation: Simulation | None = None, log: logging.Logger | None = None) -> None:
 		self.alpaca = alpaca
 		self.host = host
 		self.port = port
@@ -110,9 +111,15 @@ class GatewayCore:
 		self.positions: dict[str, Position] = {}
 		self.events: deque[Event] = deque(maxlen=2000)
 		self.clients: list[Client] = []
-		self.tracker = OrderTracker(alpaca.trading, on_order=self._on_order, on_fill=self._on_fill)
 		self.market = MarketRelay(alpaca, publish=self._publish_market, quote_interval=quote_interval,
 			bar_interval=bar_interval)
+		self.simulated = simulation is not None     # orders stay in the gateway (sim.py), Alpaca gives the data only
+		self.broker: Broker
+		if simulation is not None:
+			self.broker = SimBroker(self.market, on_order=self._on_order, on_fill=self._on_fill, file=simulation.file,
+				cash=simulation.cash, all_hours=simulation.all_hours)
+		else:
+			self.broker = AlpacaBroker(alpaca, on_order=self._on_order, on_fill=self._on_fill, on_state=self._stream_state)
 		self.snapshot: Snapshot | None = None      # for the window; replaced, never changed
 		self.loop: asyncio.AbstractEventLoop | None = None
 		self._runner: web.AppRunner | None = None
@@ -131,22 +138,15 @@ class GatewayCore:
 		self._runner = web.AppRunner(app, access_log=None)
 		await self._runner.setup()
 		await web.TCPSite(self._runner, self.host, self.port).start()
-		self.event("info", f"gateway {__version__} listening on ws://{self.host}:{self.port}/ ({self.alpaca.environment} account)")
-		orders = self.alpaca.orders
-		orders.on_trade_update(self.tracker.on_update)
-		orders.on_ready(lambda _m: (self._stream_state(), self._spawn(self.tracker.reconcile())))
-		orders.on_disconnected(lambda _m: self._stream_state())
+		self.event("info", f"gateway {__version__} listening on ws://{self.host}:{self.port}/ ({'simulated' if self.simulated else self.alpaca.environment} account)")
 		self.alpaca.stocks.on_ready(lambda _m: self._stream_state())
 		self.alpaca.stocks.on_disconnected(lambda _m: self._stream_state())
 		try:
-			acc = await self.alpaca.trading.get_account()
-			redact.account(acc.account_number)       # shortened in every log line from now on
-			if acc.trading_blocked or acc.account_blocked:
-				raise RuntimeError(f"Alpaca account {redact.mask_account(acc.account_number)} is blocked for trading")
+			if self.simulated:
+				await self.market.check()            # the keys: wrong ones fail the start, as with the account
+			await self.broker.start()
 			await self._refresh()
 			self.rest_ok = True
-			await self.tracker.load()
-			await orders.start()
 			await self.market.start()
 		except Exception as exc:
 			self._set_status("error", str(exc))
@@ -163,7 +163,7 @@ class GatewayCore:
 			await client.ws.close(code=aiohttp.WSCloseCode.GOING_AWAY, message=b"gateway stopping")
 		if self._runner is not None:
 			await self._runner.cleanup()
-		await self.tracker.close()
+		await self.broker.close()
 		await self.market.stop()
 		await self.alpaca.close()
 		self._stopped.set()
@@ -217,12 +217,12 @@ class GatewayCore:
 		if text is not None:
 			s.text = text
 		s.clients = [c.name for c in self.clients]
-		s.trading_connected = self.alpaca.orders.is_ready
+		s.trading_connected = self.broker.connected
 		s.market_data_connected = self.market.connected
 		self.broadcast(s)
 
 	def _stream_state(self) -> None:
-		trading, market = self.alpaca.orders.is_ready, self.market.connected
+		trading, market = self.broker.connected, self.market.connected
 		if trading != self.status.trading_connected and self.status.state != "stopping":    # not our own stop
 			self.event("info" if trading else "warning", f"alpaca trade updates {'connected' if trading else 'disconnected'}")
 		self._set_status()
@@ -249,10 +249,7 @@ class GatewayCore:
 			self._positions_soon = asyncio.get_running_loop().call_later(0.3, run)
 
 	async def _refresh(self) -> None:
-		acc = await self.alpaca.trading.get_account()
-		account = Account(account=acc.account_number, currency=acc.currency, equity=float(acc.equity or 0),
-			last_equity=float(acc.last_equity or 0), cash=float(acc.cash or 0), buying_power=float(acc.buying_power or 0),
-			daytrade_count=int(acc.daytrade_count or 0), pattern_day_trader=acc.pattern_day_trader)
+		account = await self.broker.account()
 		if self.account is None or msgspec.structs.replace(self.account, ts=None) != account:
 			account.ts = _now()
 			self.account = account
@@ -260,14 +257,7 @@ class GatewayCore:
 		await self._refresh_positions()
 
 	async def _refresh_positions(self) -> None:
-		fresh: dict[str, Position] = {}
-		for p in await self.alpaca.trading.get_positions():
-			if p.asset_class not in (None, "us_equity"):
-				continue
-			qty = float(p.qty)
-			fresh[p.symbol] = Position(symbol=p.symbol, qty=-abs(qty) if p.side == "short" else qty,
-				avg_price=float(p.avg_entry_price or 0), current_price=float(p.current_price or 0),
-				market_value=float(p.market_value or 0), unrealized_pl=float(p.unrealized_pl or 0))
+		fresh = await self.broker.positions()
 		for symbol in self.positions.keys() - fresh.keys():
 			self.broadcast(Position(symbol=symbol, qty=0.0))
 		for symbol, p in fresh.items():
@@ -297,7 +287,7 @@ class GatewayCore:
 			await asyncio.sleep(self.order_poll)
 			n += 1
 			try:
-				await self.tracker.poll(fetch_missing=n % every == 0)
+				await self.broker.poll(fetch_missing=n % every == 0)
 				failing = False
 			except asyncio.CancelledError:
 				raise
@@ -360,19 +350,21 @@ class GatewayCore:
 		return ws
 
 	def _welcome(self, client: Client) -> None:
-		client.send(Welcome(protocol=PROTOCOL_VERSION, gateway=f"alpacagw {__version__}", broker="alpaca",
-			environment=self.alpaca.environment, account=self.account.account if self.account else ""))
+		client.send(Welcome(protocol=PROTOCOL_VERSION, gateway=f"alpacagw {__version__}", broker=self.broker.name,
+			environment=self.broker.environment, account=self.account.account if self.account else ""))
 		client.send(self.status)
 		if self.account is not None:
 			client.send(self.account)
 		for p in self.positions.values():
 			client.send(p)
 		today = _now().date()
-		for o in self.tracker.orders.values():
+		for o in self.broker.orders.values():
 			if o.status not in FINAL or (o.updated_at is not None and o.updated_at.date() == today):
 				client.send(o)
 
 	def _publish_market(self, kind: str, symbol: str, msg: Message) -> None:
+		if kind == "quote":
+			self.broker.on_quote(msg)                # the simulated account fills its orders from them
 		data = None
 		for client in self.clients:
 			if symbol in (client.quotes if kind == "quote" else client.bars):
@@ -440,7 +432,7 @@ class GatewayCore:
 			return f"gateway not ready ({self.status.state})"
 		if not ID_RE.match(id):
 			return "id: 1 to 48 of A-Z a-z 0-9 _ - : ."
-		if id in self.tracker.orders:
+		if id in self.broker.orders:
 			return "id already used"
 		if not SYMBOL_RE.match(symbol):
 			return f"invalid symbol {symbol!r}"
@@ -484,7 +476,7 @@ class GatewayCore:
 		stop = Order(id=f"{cmd.id}.sl", symbol=symbol, side=exit_side, type="stop" if sl_limit is None else "stop_limit",
 			qty=cmd.qty, status="pending", role="stop_loss", parent_id=cmd.id, stop_price=sl, limit_price=sl_limit,
 			tif=cmd.tif, origin=origin, created_at=_now())
-		problem = await self.tracker.submit_bracket(entry, take, stop, sl_limit)
+		problem = await self.broker.submit_bracket(entry, take, stop, sl_limit)
 		at = {"market": "market", "limit": f"limit {limit}", "stop": f"stop {stop_entry}",
 			"stop_limit": f"stop {stop_entry} limit {limit}"}[kind]
 		self._reply(client, "submit_bracket", cmd.id, problem, f"{cmd.side} {cmd.qty:g} {symbol} {at}, "
@@ -516,7 +508,7 @@ class GatewayCore:
 		stop = Order(id=f"{cmd.id}.sl", symbol=symbol, side=cmd.side, type="stop" if sl_limit is None else "stop_limit",
 			qty=cmd.qty, status="pending", role="stop_loss", parent_id=cmd.id, stop_price=sl, limit_price=sl_limit,
 			tif=cmd.tif, origin=origin, created_at=_now())
-		problem = await self.tracker.submit_oco(take, stop, sl_limit)
+		problem = await self.broker.submit_oco(take, stop, sl_limit)
 		self._reply(client, "submit_oco", cmd.id, problem, f"{cmd.side} {cmd.qty:g} {symbol}: take profit {tp}, "
 			f"stop loss {sl}")
 		return problem
@@ -543,12 +535,12 @@ class GatewayCore:
 			return problem
 		order = Order(id=cmd.id, symbol=symbol, side=cmd.side, type=cmd.type, qty=cmd.qty, status="pending",
 			limit_price=limit, stop_price=stop, tif=cmd.tif, origin=self._name(client), created_at=_now())
-		problem = await self.tracker.submit_order(order, cmd.extended_hours)
+		problem = await self.broker.submit_order(order, cmd.extended_hours)
 		self._reply(client, "submit_order", cmd.id, problem, f"{cmd.side} {cmd.qty:g} {symbol} {cmd.type}")
 		return problem
 
 	async def replace(self, cmd: ReplaceOrder, client: Client | None = None) -> str | None:
-		o = self.tracker.orders.get(cmd.id)
+		o = self.broker.orders.get(cmd.id)
 		limit, stop = round_price(cmd.limit_price), round_price(cmd.stop_price)
 		problem = None
 		if o is None:
@@ -566,36 +558,36 @@ class GatewayCore:
 		elif limit is None and stop is None and cmd.qty is None:
 			problem = "nothing to change"
 		if problem is None:
-			problem = await self.tracker.replace(o, qty=cmd.qty, limit_price=limit, stop_price=stop)
+			problem = await self.broker.replace(o, qty=cmd.qty, limit_price=limit, stop_price=stop)
 		what = ", ".join(f"{n} {v:g}" for n, v in (("limit", limit), ("stop", stop), ("qty", cmd.qty)) if v is not None)
 		self._reply(client, "replace_order", cmd.id, problem, what)
 		return problem
 
 	async def cancel(self, id: str, client: Client | None = None) -> str | None:
-		o = self.tracker.orders.get(id)
-		parent = self.tracker.orders.get(o.parent_id) if o is not None and o.parent_id else None
+		o = self.broker.orders.get(id)
+		parent = self.broker.orders.get(o.parent_id) if o is not None and o.parent_id else None
 		if parent is not None and parent.role == "take_profit" and parent.status not in FINAL:
 			o = parent                   # an OCO's stop loss: Alpaca cancels both with the take profit (its order)
-		problem = "unknown order" if o is None else await self.tracker.cancel(o)
+		problem = "unknown order" if o is None else await self.broker.cancel(o)
 		self._reply(client, "cancel_order", id, problem, "cancel sent")
 		return problem
 
 	def _cancelable(self, symbol: str) -> list[Order]:
 		"""Working orders of a symbol ("" all), without the legs of a working entry (they go with it)."""
-		working = self.tracker.working(symbol or None)
+		working = self.broker.working(symbol or None)
 		ids = {o.id for o in working}
 		return [o for o in working if not (o.parent_id and o.parent_id in ids)]
 
 	async def cancel_all(self, symbol: str, client: Client | None = None) -> None:
 		orders = self._cancelable(symbol)
-		problems = [p for p in await asyncio.gather(*(self.tracker.cancel(o) for o in orders)) if p]
+		problems = [p for p in await asyncio.gather(*(self.broker.cancel(o) for o in orders)) if p]
 		self._reply(client, "cancel_all", symbol or "*", "; ".join(problems) or None, f"{len(orders)} order(s)")
 
 	async def close_position(self, symbol: str, client: Client | None = None) -> None:
 		orders = self._cancelable(symbol)
 		for o in orders:
-			await self.tracker.cancel(o)
-		if orders and not await self.tracker.wait_canceled(orders):
+			await self.broker.cancel(o)
+		if orders and not await self.broker.wait_canceled(orders):
 			self.event("warning", f"close {symbol}: cancels still pending, closing anyway", self._name(client))
 		if symbol not in self.positions:
 			await self._refresh_positions()
@@ -603,7 +595,7 @@ class GatewayCore:
 			self._reply(client, "close_position", symbol, None, f"{len(orders)} order(s) canceled, no position")
 			return
 		try:
-			order = await self.tracker.close_position(symbol, self._name(client))
+			order = await self.broker.close_position(symbol, self._name(client))
 		except Exception as exc:
 			self._reply(client, "close_position", symbol, str(exc))
 			return
@@ -611,15 +603,22 @@ class GatewayCore:
 
 	async def flatten(self, client: Client | None = None) -> None:
 		try:
-			results = await self.alpaca.trading.close_all_positions(cancel_orders=True)
+			closing = await self.broker.flatten()
 		except Exception as exc:
 			self._reply(client, "flatten_all", "*", str(exc))
 			return
-		self._reply(client, "flatten_all", "*", None, f"orders canceled, {len(results)} position(s) closing")
+		self._reply(client, "flatten_all", "*", None, f"orders canceled, {closing} position(s) closing")
 
 	async def _get_bars(self, cmd: GetBars, client: Client) -> None:
 		client.send(await self.market.get_bars(GetBars(request_id=cmd.request_id, symbol=cmd.symbol.upper(),
 			timeframe=cmd.timeframe, start=cmd.start, end=cmd.end, limit=cmd.limit)))
+
+	async def reset_simulation(self) -> None:
+		"""The simulated account as new: no orders, no positions, the starting cash."""
+		if isinstance(self.broker, SimBroker):
+			await self.broker.reset()
+			await self._refresh()
+			self.event("info", "simulated account reset")
 
 	# -- from the window (other thread) ------------------------------------------------
 

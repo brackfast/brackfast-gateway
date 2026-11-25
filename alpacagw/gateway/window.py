@@ -449,6 +449,9 @@ class GatewayWindow:
 			"quote_interval_ms": s.quote_interval_ms,
 			"bar_interval_ms": s.bar_interval_ms,
 			"check_updates": s.check_updates,
+			"simulate": s.simulate,
+			"sim_cash": s.sim_cash,
+			"sim_all_hours": s.sim_all_hours,
 		}
 		self.form_message = ""
 		self.settings_requested = True
@@ -485,7 +488,8 @@ class GatewayWindow:
 			f = self.form
 			s = settings_mod.GatewaySettings(stock_feed=f["stock_feed"], port=f["port"], local_only=f["local_only"],
 				quote_interval_ms=f["quote_interval_ms"], bar_interval_ms=f["bar_interval_ms"],
-				check_updates=f.get("check_updates", True))
+				check_updates=f.get("check_updates", True), simulate=f["simulate"], sim_cash=f["sim_cash"],
+				sim_all_hours=f["sim_all_hours"])
 			try:
 				settings_mod.save(self._environment(), s)
 				self.form_message = "Saved. Restart the gateway to use the new settings."
@@ -519,7 +523,7 @@ class GatewayWindow:
 		imgui.spacing()
 		# the fields' column: after the widest label, from where the pane's content starts (its padding)
 		label_w = (imgui.get_cursor_pos_x() + max(imgui.calc_text_size(t).x for t in ("Data feed", "Socket Port",
-			"Quotes", "Forming bar")) + 2 * imgui.get_style().item_spacing.x)
+			"Quotes", "Forming bar", "Starting cash")) + 2 * imgui.get_style().item_spacing.x)
 		field_w = imgui.get_font_size() * 16
 
 		def label(text: str) -> None:
@@ -553,6 +557,8 @@ class GatewayWindow:
 			f["bar_interval_ms"] = max(10, min(value, 60_000))
 		imgui.text_colored(GREY, "at most every ... ms (quotes: the newest; the bar: when it changed)")
 		imgui.spacing()
+		self._simulation_settings(label)
+		imgui.spacing()
 		_, f["check_updates"] = imgui.checkbox("Check for updates at start", f.get("check_updates", True))
 		if imgui.is_item_hovered():
 			imgui.set_tooltip("Asks the website which version is the newest (nothing about you or your account\n"
@@ -560,6 +566,29 @@ class GatewayWindow:
 		if self.form_message:
 			imgui.spacing()
 			imgui.text_colored(YELLOW, self.form_message)
+
+	def _simulation_settings(self, label) -> None:
+		"""Settings -> Gateway: the simulated account (sim.py) instead of the one at Alpaca."""
+		f = self.form
+		_, f["simulate"] = imgui.checkbox("Simulated account", f["simulate"])
+		if imgui.is_item_hovered():
+			imgui.set_tooltip("Orders stay in the gateway and fill from Alpaca's quotes (buys at the ask, sells at\n"
+				"the bid); no order reaches Alpaca. Clients see a paper account named SIMULATED.")
+		imgui.begin_disabled(not f["simulate"])
+		label("Starting cash")
+		changed, value = imgui.input_double("##sim_cash", f["sim_cash"], 0.0, 0.0, "%.0f")
+		if changed:
+			f["sim_cash"] = max(1.0, min(value, 1e9))
+		_, f["sim_all_hours"] = imgui.checkbox("Fill outside regular hours", f["sim_all_hours"])
+		if imgui.is_item_hovered():
+			imgui.set_tooltip("Off: fills from 09:30 to 16:00 New York, as at the exchange. On: whenever there is a\n"
+				"price, also the last one of a closed market (for trying things out in the evening).")
+		imgui.end_disabled()
+		core = self.launcher.core
+		if core is not None and core.simulated:
+			if look.button("Reset the simulated account"):
+				self._ask("Reset the simulated account?", "Its orders are canceled, its positions removed, the cash is "
+					"the starting cash again.", lambda: core.call(core.reset_simulation))
 
 	def _about_tab(self) -> None:
 		"""Settings -> About: version, license, updates, and where the third-party licenses are (Open the licenses:
@@ -607,7 +636,7 @@ class GatewayWindow:
 		settings = settings_mod.load(env)
 		host = launcher.host_arg or settings.host
 		port = launcher.port_arg or settings.port_for(env)
-		return SimpleNamespace(environment=env, account=None, rest_ok=False, market_symbols=0, clients=[],
+		return SimpleNamespace(environment=env, simulated=settings.simulate or launcher.simulate_arg, account=None, rest_ok=False, market_symbols=0, clients=[],
 			feed=settings.stock_feed or launcher.config.stock_feed, address=f"ws://{host}:{port}/",
 			status=Status(state="not logged in"))
 
@@ -728,9 +757,12 @@ class GatewayWindow:
 	def _header(self, snap: Snapshot) -> None:
 		# paper / live as a bar across the window, the account in it
 		live = snap.environment == "live"
-		text = f"{'LIVE' if live else 'PAPER'} ACCOUNT"
-		if snap.account is not None:
-			text += f"   {snap.account.account}"
+		if snap.simulated:                       # no order reaches Alpaca: never the live red
+			live, text = False, f"SIMULATED ACCOUNT   ({snap.environment} keys for the market data)"
+		else:
+			text = f"{'LIVE' if live else 'PAPER'} ACCOUNT"
+			if snap.account is not None:
+				text += f"   {snap.account.account}"
 		pos = imgui.get_cursor_screen_pos()
 		width, height = imgui.get_content_region_avail().x, _row_height()
 		imgui.get_window_draw_list().add_rect_filled(pos, imgui.ImVec2(pos.x + width, pos.y + height),
@@ -787,10 +819,12 @@ class GatewayWindow:
 		"""Connection Status: one row per connection, green when up, red when down."""
 		s = snap.status
 		n = len(snap.clients)
-		rows = [
+		rows = [("Account", ON if s.trading_connected else OFF, "simulated in the gateway")] if snap.simulated else [
 			("Alpaca Trading API", ON if snap.rest_ok else OFF, "connected" if snap.rest_ok else "disconnected"),
 			("Trading Stream", ON if s.trading_connected else OFF, "connected" if s.trading_connected
 				else "disconnected"),
+		]
+		rows += [
 			# grey while no client has subscribed anything (the stream is not opened then), red when it should run
 			("Market Data Stream", ON if s.market_data_connected else OFF if snap.market_symbols else IDLE,
 				f"{'connected' if s.market_data_connected else 'disconnected'} ({snap.feed})"),

@@ -6,6 +6,10 @@ What each version brings, for users. The build writes the section of the version
 
 ## Next
 
+- **Simulated account:** Settings, "Simulated account" (or `--simulate`): orders stay in the gateway and
+  fill from Alpaca's quotes (buys at the ask, sells at the bid), no order reaches Alpaca. Brackets, OCOs,
+  replace, cancel, close and flatten work as before; the account starts with a cash amount you set, is
+  kept across restarts and can be reset. Trading apps see a paper account named SIMULATED.
 - **Cleaner controls:** flat buttons, no shadow line under the outlines, 2 px corners, a little
   taller fields and buttons (20 px), 4 px between them; the same look as Brackfast and Chartfast.
 

@@ -25,6 +25,9 @@ class GatewaySettings(msgspec.Struct, kw_only=True):
 	quote_interval_ms: int = 100             # quotes to the clients at most this often per symbol (the newest)
 	bar_interval_ms: int = 250               # the forming 1m bar at most this often per symbol, when it changed
 	check_updates: bool = True               # at start: a newer version on the website? (updates.py)
+	simulate: bool = False                   # a simulated account (sim.py): Alpaca gives the market data only
+	sim_cash: float = 100_000.0              # of a new simulated account, and after its reset
+	sim_all_hours: bool = False              # simulated fills whenever there is a quote, not in regular hours only
 
 	def port_for(self, environment: str) -> int:
 		return self.port or PORT
@@ -48,6 +51,11 @@ def path() -> Path:
 # (a newer version's, a damaged file) costs only that setting, not every setting of both environments; what this
 # version does not know is kept and saved again (back to an older gateway loses nothing of a newer one's); saving one
 # environment keeps the other as it is; written through a temporary file (a crash leaves the old file).
+
+def simulation_file(environment: str) -> Path:
+	"""Where the simulated account of an environment's gateway is kept (next to the settings)."""
+	return path().with_name(f"simulated-account-{environment}.json")
+
 
 def _raw(file: Path) -> dict:
 	"""The file as it is (both environments, unknown settings included); not JSON: kept aside, nothing."""

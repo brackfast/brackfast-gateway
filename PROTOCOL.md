@@ -59,7 +59,7 @@ Timeframes: `1m` `2m` `5m` `15m` `30m` `1h` `1D` `1W` `1M`.
 
 | msg | Fields |
 |---|---|
-| `welcome` | `protocol`, `gateway` (name and version), `broker` (`alpaca`), `environment` (`paper` / `live`), `account` |
+| `welcome` | `protocol`, `gateway` (name and version), `broker` (`alpaca`, or `simulated`: the gateway's simulated account, environment `paper`, account `SIMULATED`), `environment` (`paper` / `live`), `account` |
 | `status` | `state` (`starting` / `ready` / `error` / `stopping`), `trading_connected`, `market_data_connected`, `clients`, `text` |
 | `account` | `account`, `currency`, `equity`, `last_equity` (at the previous close), `cash`, `buying_power`, `daytrade_count`, `pattern_day_trader`, `ts` |
 | `position` | `symbol`, `qty` (< 0 short; 0 = closed, sent once), `avg_price`, `current_price`, `market_value`, `unrealized_pl` |

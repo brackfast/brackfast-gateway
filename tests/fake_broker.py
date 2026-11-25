@@ -191,11 +191,21 @@ class FakeData:
 	def __init__(self) -> None:
 		self.requests = []
 		self.trades: dict[str, list] = {}           # get_trades' answer, {symbol: [TradeData]}
+		self.latest: dict = {}                      # get_latest_quotes' answer, {symbol: QuoteData}
+		self.latest_trades: dict = {}               # get_latest_trades' answer, {symbol: TradeData}
 
 	async def get_trades(self, params, *, max_pages=None):
 		self.requests.append(params)
 		return {s: [t for t in self.trades.get(s, ()) if params.start <= t.timestamp <= params.end]
 			for s in params.symbols}
+
+	async def get_latest_quotes(self, symbols, *, feed=None):
+		self.requests.append(("latest quotes", symbols))
+		return dict(self.latest)
+
+	async def get_latest_trades(self, symbols, *, feed=None):
+		self.requests.append(("latest trades", symbols))
+		return dict(self.latest_trades)
 
 	async def iter_bars(self, params):
 		self.requests.append(params)
