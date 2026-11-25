@@ -24,9 +24,9 @@ API client, the `[alpaca]` section of config.cfg, the "Alpaca API key" field, Se
   Chartfast's gateway_check against it.
 - Step B 5 done: authors / mirror identity "The Brackfast Gateway authors" (73c08ad), the repo renamed on the git
   server (joa/brackfast-gateway), the folder `../brackfast-gateway` (path sources, venvs), the GitHub repository
-  renamed to brackfast/brackfast-gateway with the new description. The mirror's history is not yet pushed again
-  (`push_github_mirror.py ... --force`, MIRROR.md: once, after the identity change).
-- Open: that mirror push; the first release with `--bridge`; the website deployed.
+  renamed to brackfast/brackfast-gateway with the new description, its history pushed again with `--force`
+  (checked on a fresh clone: identity "Brackfast Gateway", no personal name in files or messages).
+- Open: the first release with `--bridge`; the website deployed.
 
 ## New names
 
