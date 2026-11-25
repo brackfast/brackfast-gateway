@@ -1,7 +1,7 @@
-"""Push the Alpaca Gateway to its read-only GitHub mirror: main and the tags, nothing else.
+"""Push the Brackfast Gateway to its read-only GitHub mirror: main and the tags, nothing else.
 
-	uv run --no-project tools/push_github_mirror.py git@github.com:OWNER/alpaca-gateway.git --dry-run
-	uv run --no-project tools/push_github_mirror.py git@github.com:OWNER/alpaca-gateway.git
+	uv run --no-project tools/push_github_mirror.py git@github.com:OWNER/brackfast-gateway.git --dry-run
+	uv run --no-project tools/push_github_mirror.py git@github.com:OWNER/brackfast-gateway.git
 
 origin (the self-hosted server) stays the real repository; the mirror only follows it. The script refuses to run
 without a GitHub URL, and when local main differs from origin/main (push to origin first, so the mirror never
@@ -15,6 +15,7 @@ for the same input, so pushing again later needs no force.
 
 	--replace-text FILE   more replacements (git filter-repo's expressions file)
 	--keep-authors        push origin's history as it is, names included
+	--force               replace the mirror's history (after IDENTITY or AUTHORS changed: every commit id changes)
 """
 from __future__ import annotations
 
@@ -28,8 +29,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 GITHUB_URL = re.compile(r"^(git@github\.com:|https://github\.com/)[\w.-]+/[\w.-]+?(\.git)?$")
 REFSPECS = ["refs/heads/main:refs/heads/main", "refs/tags/*:refs/tags/*"]
-IDENTITY = "Alpaca Gateway <noreply@brackfast.io>"
-AUTHORS = "The Alpaca Gateway authors"
+IDENTITY = "Brackfast Gateway <noreply@brackfast.io>"     # up to 2026-11-25 "Alpaca Gateway ..."
+AUTHORS = "The Brackfast Gateway authors"
 FIRST_NAME = "NAME"
 UMLAUTS = [{"ä": "ae", "ö": "oe", "ü": "ue", "Ä": "Ae", "Ö": "Oe", "Ü": "Ue", "ß": "ss"},
 	{"ä": "a", "ö": "o", "ü": "u", "Ä": "A", "Ö": "O", "Ü": "U", "ß": "ss"}]
@@ -94,6 +95,8 @@ def main() -> None:
 	parser.add_argument("--dry-run", action="store_true", help="show what would be pushed, push nothing")
 	parser.add_argument("--replace-text", type=Path, help="more replacements: a git filter-repo expressions file")
 	parser.add_argument("--keep-authors", action="store_true", help="push the history as it is, names included")
+	parser.add_argument("--force", action="store_true", help="replace the mirror's history (IDENTITY or AUTHORS "
+		"changed: other commit ids)")
 	args = parser.parse_args()
 	if not GITHUB_URL.match(args.url):
 		sys.exit(f"not a GitHub repository URL: {args.url!r}")
@@ -104,7 +107,7 @@ def main() -> None:
 	check_main()
 	with tempfile.TemporaryDirectory(prefix="brackfastgw-mirror-") as tmp:
 		source = ROOT if args.keep_authors else rewritten_clone(Path(tmp), args.replace_text)
-		push = ["push", "--porcelain", *(["--dry-run"] if args.dry_run else []), args.url, *REFSPECS]
+		push = ["push", "--porcelain", *(["--dry-run"] if args.dry_run else []), *(["--force"] if args.force else []), args.url, *REFSPECS]
 		print("git", " ".join(push), f"(from {source})")
 		git(*push, cwd=source, capture=False)
 

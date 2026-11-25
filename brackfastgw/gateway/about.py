@@ -16,7 +16,7 @@ from pathlib import Path
 from .. import __version__
 
 PRODUCT = "Brackfast Gateway"
-COPYRIGHT = "Copyright (c) 2026 The Alpaca Gateway authors"            # as LICENSE (About shows the license only)
+COPYRIGHT = "Copyright (c) 2026 The Brackfast Gateway authors"            # as LICENSE (About shows the license only)
 LICENSE = "Released under the MIT License."
 DISCLAIMER = ("Not affiliated with or endorsed by Alpaca or Yahoo. Trading involves risk; the software comes without "
 	"warranty of any kind.")

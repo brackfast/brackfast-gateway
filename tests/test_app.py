@@ -51,7 +51,7 @@ def test_third_party_licenses_have_the_texts():
 	text = about.third_party_text()
 	for needed in ("Omar Cornut", "Camilla Löwy", "Permission is hereby granted", "aiohttp", "msgspec", "Pascal Thomet"):
 		assert needed in text, needed
-	assert "NAME" not in text and "The Alpaca Gateway authors" in text
+	assert "NAME" not in text and "The Brackfast Gateway authors" in text
 
 
 def test_settings_across_versions(tmp_path):
