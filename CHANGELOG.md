@@ -6,6 +6,8 @@ What each version brings, for users. The build writes the section of the version
 
 ## Next
 
+- **Settings:** "Check for updates at start" moved to the About tab, next to Check for updates; it is
+  saved as soon as it is clicked.
 - **Yahoo Finance as the data source (unofficial):** market data without an account or keys: "Use Yahoo
   Finance" in the login dialog, Settings "Data source", or `--yahoo`. History (1m for 30 days, up to 1h
   for 60 days, daily and longer for years) and live prices, with the simulated account. Yahoo has no

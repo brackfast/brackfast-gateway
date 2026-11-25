@@ -591,11 +591,6 @@ class GatewayWindow:
 		imgui.text_colored(GREY, "at most every ... ms (quotes: the newest; the bar: when it changed)")
 		imgui.spacing()
 		self._bar_cache_settings(label)
-		imgui.spacing()
-		_, f["check_updates"] = imgui.checkbox("Check for updates at start", f.get("check_updates", True))
-		if imgui.is_item_hovered():
-			imgui.set_tooltip("Asks the website which version is the newest (nothing about you or your account\n"
-				"is sent). A newer one: a line under the account bar.")
 
 	def _bar_cache_settings(self, label) -> None:
 		"""Settings -> Gateway: historical bars kept on disk (barcache.py), a file per data source."""
@@ -611,7 +606,6 @@ class GatewayWindow:
 		if changed:
 			f["bar_cache_mb"] = max(10, min(value, 100_000))
 		imgui.end_disabled()
-		imgui.text_colored(GREY, "Sizes and Clear: the Bar Cache tab of the gateway's window")
 
 	def _simulation_tab(self) -> None:
 		"""Settings -> Simulation: the simulated account (sim.py). With a data source that has an account (Alpaca)
@@ -890,8 +884,29 @@ class GatewayWindow:
 		imgui.align_text_to_frame_padding()
 		color = {updates_mod.AVAILABLE: NEWER, updates_mod.FAILED: YELLOW}.get(u.state, GREY)
 		imgui.push_text_wrap_pos(imgui.get_style().window_padding.x + width)     # the pane's right edge
-		imgui.text_colored(color, u.text or "Not checked yet in this run (Settings, Gateway: at start).")
+		imgui.text_colored(color, u.text or "Not checked yet in this run.")
 		imgui.pop_text_wrap_pos()
+		self._check_updates_setting()
+
+	def _check_updates_setting(self) -> None:
+		"""Settings -> About: Check for updates at start. Saved at once (Save is off on About): only this setting is
+		written to the file, the other tabs' unsaved changes stay unsaved; the form follows, so their Save keeps it."""
+		f = self.form
+		changed, value = imgui.checkbox("Check for updates at start", f.get("check_updates", True))
+		if imgui.is_item_hovered():
+			imgui.set_tooltip("Asks the website which version is the newest (nothing about you or your account\n"
+				"is sent). A newer one: a line under the account bar.")
+		if not changed:
+			return
+		f["check_updates"] = value
+		env = self._environment()
+		try:
+			s = settings_mod.load(env)
+			s.check_updates = value
+			settings_mod.save(env, s)
+			log.info("check for updates at start: %s (saved)", "on" if value else "off")
+		except OSError as exc:
+			log.warning("check for updates at start not saved: %s", exc)
 
 	def _connection_status(self, snap: Snapshot) -> None:
 		"""Connection Status: one row per connection, green when up, red when down."""

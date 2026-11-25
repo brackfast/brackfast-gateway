@@ -96,7 +96,7 @@ restart the gateway: the new settings apply from the next start.
   reaches the port can then trade your account.
 - Quotes, Forming bar: how often, at most, the gateway sends a symbol's newest quote and its
   forming one-minute bar to your trading programs, in milliseconds (default 100 and 250).
-- Check for updates at start: on by default (see Updates).
+- Check for updates at start (the About tab, saved at once): on by default (see Updates).
 
 The settings are stored in:
 
