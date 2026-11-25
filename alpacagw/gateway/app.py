@@ -27,6 +27,7 @@ from .. import __version__
 from ..client import Alpaca, AlpacaConfig, Credentials, load_config
 from ..protocol import PORT
 from . import redact, settings as settings_mod, updates as updates_mod
+from .barcache import BarCache
 from .core import GatewayCore
 from .sim import Simulation
 
@@ -142,6 +143,10 @@ def make_core(config: AlpacaConfig, host: str | None, port: int | None, simulate
 	host = host or settings.host
 	port = port or settings.port_for(config.environment)
 	feed = settings.stock_feed or config.stock_feed
+	cache = None
+	if settings.bar_cache:
+		cache = BarCache(settings_mod.bar_cache_folder(), max_mb=max(10, settings.bar_cache_mb))
+		log.info("bar cache: %s", cache.file(f"alpaca-{feed}"))
 	simulation = None
 	if simulate or settings.simulate:
 		simulation = Simulation(file=settings_mod.simulation_file(config.environment), cash=settings.sim_cash,
@@ -151,7 +156,7 @@ def make_core(config: AlpacaConfig, host: str | None, port: int | None, simulate
 		__version__, config.environment, feed, host, port, settings.quote_interval_ms, settings.bar_interval_ms)
 	if host not in ("127.0.0.1", "localhost", "::1"):
 		log.warning("listening on %s: every computer that reaches port %d can trade this account", host, port)
-	return GatewayCore(Alpaca(config, stock_feed=feed), host=host, port=port, simulation=simulation,
+	return GatewayCore(Alpaca(config, stock_feed=feed), host=host, port=port, simulation=simulation, bar_cache=cache,
 		quote_interval=max(10, settings.quote_interval_ms) / 1000, bar_interval=max(10, settings.bar_interval_ms) / 1000)
 
 

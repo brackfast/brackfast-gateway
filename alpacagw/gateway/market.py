@@ -7,6 +7,7 @@ A symbol's first bars subscription also fetches the running minute's earlier tra
 opened mid-minute showed that minute from its first trade after the subscription (a gap from the previous close,
 too short a range) until Alpaca's bar replaced it.
 Quotes are sent at most every ``quote_interval`` seconds per symbol (the newest one).
+History comes through the bar cache when there is one (``barcache.py``): Alpaca is asked only for what is missing.
 """
 from __future__ import annotations
 
@@ -17,6 +18,7 @@ from typing import Any, Callable
 
 from ..client import Bar as AlpacaBar, BarsParams, Quote as AlpacaQuote, Trade, TradeData, TradesParams, UpdatedBar
 from ..protocol import Bar, BarData, Bars, GetBars, Quote
+from .barcache import BarCache
 
 TIMEFRAMES = {
 	"1m": ("1Min", timedelta(minutes=1)),
@@ -91,8 +93,11 @@ def _minute(ts: datetime) -> datetime:
 class MarketRelay:
 	def __init__(self, alpaca: Any, *, publish: Callable[[str, str, Any], None], log: logging.Logger | None = None,
 			bar_interval: float = 0.25, quote_interval: float = 0.1, fill_delay: float = FILL_DELAY,
-			clock: Callable[[], datetime] = lambda: datetime.now(timezone.utc)) -> None:
+			clock: Callable[[], datetime] = lambda: datetime.now(timezone.utc), cache: BarCache | None = None) -> None:
 		self.alpaca = alpaca
+		self.cache = cache                        # historical bars kept on disk; None: every request goes to Alpaca
+		# the data source's name: the cache's file. Each feed has its own (their bars differ)
+		self.source = f"alpaca-{getattr(alpaca, 'stock_feed', '') or 'iex'}"
 		self.publish = publish                    # (kind "bar" / "quote", symbol, message)
 		self.log = log or logging.getLogger("alpacagw.market")
 		self.bar_interval = bar_interval
@@ -134,6 +139,8 @@ class MarketRelay:
 			task.cancel()
 		if self._started:
 			await self.alpaca.stocks.stop()
+		if self.cache is not None:
+			self.cache.close()
 
 	# -- historical ---------------------------------------------------------------
 
@@ -144,22 +151,32 @@ class MarketRelay:
 		limit = max(1, min(req.limit, MAX_BARS))
 		end = req.end or datetime.now(timezone.utc)
 		start = req.start or end - lookback(req.timeframe, limit)
-		params = BarsParams(symbols=[req.symbol], timeframe=TIMEFRAMES[req.timeframe][0], start=start, end=end,
-			sort="desc", limit=min(limit, 10_000))
-		rows: list[BarData] = []
+		fetch = lambda lo, hi, n: self._fetch(req.symbol, req.timeframe, lo, hi, n)
 		try:
-			async for page in self.alpaca.data.iter_bars(params):
-				for b in (page.data or {}).get(req.symbol, ()):
-					rows.append(BarData(b.timestamp, b.open, b.high, b.low, b.close, b.volume))
-				if len(rows) >= limit:
-					break
+			if self.cache is None:
+				rows = await fetch(start, end, limit)
+			else:
+				step = TIMEFRAMES[req.timeframe][1]  # Alpaca's intraday bars start at multiples of it (UTC)
+				rows = await self.cache.get(self.source, req.symbol, req.timeframe, step, start, end, limit, fetch,
+					aligned=step < timedelta(days=1))
 		except Exception as exc:
 			self.log.warning("bars %s %s failed: %s", req.symbol, req.timeframe, exc)
 			return Bars(request_id=req.request_id, symbol=req.symbol, timeframe=req.timeframe, bars=[], text=str(exc))
-		rows = rows[:limit]
 		rows.reverse()
 		return Bars(request_id=req.request_id, symbol=req.symbol, timeframe=req.timeframe, bars=rows,
 			name=await self.name(req.symbol))
+
+	async def _fetch(self, symbol: str, timeframe: str, start: datetime, end: datetime, limit: int) -> list[BarData]:
+		"""From Alpaca: the newest ``limit`` bars with start <= ts <= end, newest first."""
+		params = BarsParams(symbols=[symbol], timeframe=TIMEFRAMES[timeframe][0], start=start, end=end, sort="desc",
+			limit=min(limit, 10_000))
+		rows: list[BarData] = []
+		async for page in self.alpaca.data.iter_bars(params):
+			for b in (page.data or {}).get(symbol, ()):
+				rows.append(BarData(b.timestamp, b.open, b.high, b.low, b.close, b.volume))
+			if len(rows) >= limit:
+				break
+		return rows[:limit]
 
 	async def name(self, symbol: str) -> str:
 		"""The asset's name from Alpaca (once per symbol); "" when Alpaca has none or is not reached (asked again)."""

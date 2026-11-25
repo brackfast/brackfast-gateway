@@ -36,6 +36,20 @@ broker `simulated`, account `SIMULATED`) and use the same commands.
 - No margin rules, fees or buying power check. The account (cash, positions, working orders) is kept
   in `simulated-account-<environment>.json` next to the settings; Settings has a reset.
 
+### Bar cache
+
+Historical bars are kept on disk (`alpacagw/gateway/barcache.py`; Settings, "Keep historical bars on disk"),
+so a history request asks Alpaca only for what is missing:
+
+- One SQLite file per data source in `bar-cache/` next to the settings: `alpaca-iex.sqlite`,
+  `alpaca-sip.sqlite`, ... Their bars differ, and one source's file can be cleared or deleted alone.
+- Per symbol and timeframe it keeps the bars and the time ranges asked completely, so a night or a
+  weekend without bars is not asked for again.
+- Only bars complete for 15 minutes are kept; the newest part of a request always comes from Alpaca.
+- Alpaca's bars are split adjusted: each request to Alpaca also asks for the newest cached bar again,
+  and when its prices changed (a split), the symbol's cache is dropped.
+- A file above the size in the settings (500 MB) loses what was used longest ago at the next start.
+
 The gateway is built in two halves for this: the market data (`market.py`) and the broker
 (`broker.py`: `AlpacaBroker`, or `sim.SimBroker`, which knows nothing of Alpaca).
 

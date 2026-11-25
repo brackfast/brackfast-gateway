@@ -106,6 +106,19 @@ The settings are stored in:
 They hold no API keys.
 
 
+BAR CACHE
+---------
+
+The gateway keeps the historical bars it has fetched on disk, so a chart opened again gets its
+history at once and Alpaca is asked only for the newest bars. Settings, "Keep historical bars on
+disk" switches it off; "At most ... MB per data feed" limits its size (the bars used longest ago
+go first), and Clear empties it. Each data feed (iex, sip, delayed_sip) has a file of its own:
+
+    Windows:  %APPDATA%lpacagwar-cache    Linux:    ~/.config/alpacagw/bar-cache/
+
+The files hold market data only and can be deleted at any time.
+
+
 SIMULATED ACCOUNT
 -----------------
 

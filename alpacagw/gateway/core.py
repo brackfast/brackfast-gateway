@@ -24,6 +24,7 @@ from ..protocol import (
 	Message, Order, Position, ReplaceOrder, Reply, Status, SubmitBracket, SubmitOco, SubmitOrder, Subscribe,
 	Unsubscribe, Welcome, decode_client, encode,
 )
+from .barcache import BarCache
 from .broker import AlpacaBroker, Broker
 from .market import MarketRelay
 from .sim import SimBroker, Simulation
@@ -98,7 +99,8 @@ class Snapshot:
 class GatewayCore:
 	def __init__(self, alpaca: Alpaca, *, host: str = "127.0.0.1", port: int = 4102,
 			refresh: float = 5.0, order_poll: float = 1.0, quote_interval: float = 0.1, bar_interval: float = 0.25,
-			simulation: Simulation | None = None, log: logging.Logger | None = None) -> None:
+			simulation: Simulation | None = None, bar_cache: BarCache | None = None,
+			log: logging.Logger | None = None) -> None:
 		self.alpaca = alpaca
 		self.host = host
 		self.port = port
@@ -112,7 +114,7 @@ class GatewayCore:
 		self.events: deque[Event] = deque(maxlen=2000)
 		self.clients: list[Client] = []
 		self.market = MarketRelay(alpaca, publish=self._publish_market, quote_interval=quote_interval,
-			bar_interval=bar_interval)
+			bar_interval=bar_interval, cache=bar_cache)
 		self.simulated = simulation is not None     # orders stay in the gateway (sim.py), Alpaca gives the data only
 		self.broker: Broker
 		if simulation is not None:
@@ -612,6 +614,13 @@ class GatewayCore:
 	async def _get_bars(self, cmd: GetBars, client: Client) -> None:
 		client.send(await self.market.get_bars(GetBars(request_id=cmd.request_id, symbol=cmd.symbol.upper(),
 			timeframe=cmd.timeframe, start=cmd.start, end=cmd.end, limit=cmd.limit)))
+
+	async def clear_bar_cache(self) -> None:
+		"""The bars kept on disk for this gateway's data source, removed."""
+		cache = self.market.cache
+		if cache is not None:
+			await asyncio.to_thread(cache.clear, self.market.source)
+			self.event("info", f"bar cache {self.market.source} cleared")
 
 	async def reset_simulation(self) -> None:
 		"""The simulated account as new: no orders, no positions, the starting cash."""

@@ -217,6 +217,7 @@ class FakeData:
 
 class FakeAlpaca:
 	environment = "paper"
+	stock_feed = "iex"
 
 	def __init__(self) -> None:
 		self.trading = FakeTrading()

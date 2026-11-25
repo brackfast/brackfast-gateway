@@ -449,6 +449,8 @@ class GatewayWindow:
 			"quote_interval_ms": s.quote_interval_ms,
 			"bar_interval_ms": s.bar_interval_ms,
 			"check_updates": s.check_updates,
+			"bar_cache": s.bar_cache,
+			"bar_cache_mb": s.bar_cache_mb,
 			"simulate": s.simulate,
 			"sim_cash": s.sim_cash,
 			"sim_all_hours": s.sim_all_hours,
@@ -489,6 +491,7 @@ class GatewayWindow:
 			s = settings_mod.GatewaySettings(stock_feed=f["stock_feed"], port=f["port"], local_only=f["local_only"],
 				quote_interval_ms=f["quote_interval_ms"], bar_interval_ms=f["bar_interval_ms"],
 				check_updates=f.get("check_updates", True), simulate=f["simulate"], sim_cash=f["sim_cash"],
+				bar_cache=f["bar_cache"], bar_cache_mb=f["bar_cache_mb"],
 				sim_all_hours=f["sim_all_hours"])
 			try:
 				settings_mod.save(self._environment(), s)
@@ -523,7 +526,7 @@ class GatewayWindow:
 		imgui.spacing()
 		# the fields' column: after the widest label, from where the pane's content starts (its padding)
 		label_w = (imgui.get_cursor_pos_x() + max(imgui.calc_text_size(t).x for t in ("Data feed", "Socket Port",
-			"Quotes", "Forming bar", "Starting cash")) + 2 * imgui.get_style().item_spacing.x)
+			"Quotes", "Forming bar", "Starting cash", "At most")) + 2 * imgui.get_style().item_spacing.x)
 		field_w = imgui.get_font_size() * 16
 
 		def label(text: str) -> None:
@@ -557,6 +560,8 @@ class GatewayWindow:
 			f["bar_interval_ms"] = max(10, min(value, 60_000))
 		imgui.text_colored(GREY, "at most every ... ms (quotes: the newest; the bar: when it changed)")
 		imgui.spacing()
+		self._bar_cache_settings(label)
+		imgui.spacing()
 		self._simulation_settings(label)
 		imgui.spacing()
 		_, f["check_updates"] = imgui.checkbox("Check for updates at start", f.get("check_updates", True))
@@ -566,6 +571,32 @@ class GatewayWindow:
 		if self.form_message:
 			imgui.spacing()
 			imgui.text_colored(YELLOW, self.form_message)
+
+	def _bar_cache_settings(self, label) -> None:
+		"""Settings -> Gateway: historical bars kept on disk (barcache.py), a file per data source."""
+		f = self.form
+		_, f["bar_cache"] = imgui.checkbox("Keep historical bars on disk", f["bar_cache"])
+		if imgui.is_item_hovered():
+			imgui.set_tooltip("A chart's history is asked from Alpaca once; later only what is missing (the newest\n"
+				"bars always). One file per data feed, as their bars differ.")
+		imgui.begin_disabled(not f["bar_cache"])
+		label("At most")
+		imgui.set_next_item_width(imgui.get_font_size() * 6)     # a short number: the dialog keeps its width
+		changed, value = imgui.input_int("MB per data feed##bar_cache_mb", f["bar_cache_mb"], 0, 0)
+		if changed:
+			f["bar_cache_mb"] = max(10, min(value, 100_000))
+		imgui.end_disabled()
+		core = self.launcher.core
+		cache = core.market.cache if core is not None else None
+		if cache is not None:
+			source = core.market.source
+			imgui.text_colored(GREY, f"{source}: {cache.size(source) / 1e6:,.1f} MB")
+			if imgui.is_item_hovered():
+				imgui.set_tooltip(str(cache.file(source)))
+			imgui.same_line()
+			if imgui.small_button("Clear"):
+				self._ask("Clear the bar cache?", f"The bars kept on disk for {source} are removed; charts ask Alpaca for "
+					"their history again.", lambda: core.call(core.clear_bar_cache))
 
 	def _simulation_settings(self, label) -> None:
 		"""Settings -> Gateway: the simulated account (sim.py) instead of the one at Alpaca."""
